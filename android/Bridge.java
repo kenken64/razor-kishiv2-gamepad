@@ -15,6 +15,7 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
     Button connect;
     TextView status;
     Session session;
+    android.app.AlertDialog disconnectDialog;
     boolean pairedThisRun;
     int retrySeconds = 1;
     String resumeAddress, resumeCode;
@@ -49,9 +50,13 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
     EditText field(LinearLayout parent,String name,String example,int type){
         TextView caption=label(name,14,white,true); insert(parent,caption,14,-2);
         EditText input=new EditText(this); input.setId(View.generateViewId()); caption.setLabelFor(input.getId());
-        input.setSingleLine(); input.setInputType(type); input.setTextSize(17); input.setTextColor(white);
+        input.setSingleLine(); input.setInputType(type); input.setTextSize(17);
+        int[] disabled = {-android.R.attr.state_enabled};
+        input.setTextColor(new android.content.res.ColorStateList(
+            new int[][]{disabled, new int[0]}, new int[]{soft, white}));
         input.setHint(example); input.setHintTextColor(soft); input.setPadding(dp(14),0,dp(12),0);
         android.graphics.drawable.StateListDrawable states=new android.graphics.drawable.StateListDrawable();
+        states.addState(disabled,surface(card,12,0));
         states.addState(new int[]{android.R.attr.state_focused},surface(ink,12,lime));
         states.addState(new int[]{},surface(ink,12,0xff445654)); input.setBackground(states);
         insert(parent,input,5,50); return input;
@@ -181,12 +186,15 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         pin.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         pin.setOnEditorActionListener((v,action,event)->{if(action!=android.view.inputmethod.EditorInfo.IME_ACTION_DONE)return false; connect.performClick();return true;});
         connect.setOnClickListener(v -> {
-            if (session != null) { stop("Disconnected"); return; }
+            if (session != null) {
+                confirmDisconnect();
+                return;
+            }
             String ip = host.getText().toString().trim(), code = pin.getText().toString();
             if(ip.isEmpty() || !code.matches("[0-9]{6}")) { status.setText("Enter the PC address and six-digit code."); return; }
             getPreferences(0).edit().putString("host",ip).apply();
             beginAttempt(ip,code);
-            ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(pin.getWindowToken(),0); host.setEnabled(false); pin.setEnabled(false); linkState.setText("Pairing…"); status.setText("Contacting receiver…"); connect.setText("Disconnect");
+            ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(pin.getWindowToken(),0); linkState.setText("Pairing…"); status.setText("Contacting receiver…"); connect.setText("Disconnect");
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         });
     }
@@ -319,7 +327,20 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
             }
         }
     }
+    void confirmDisconnect(){
+        if (disconnectDialog != null) return;
+        disconnectDialog = new android.app.AlertDialog.Builder(this)
+            .setTitle("Disconnect from receiver?")
+            .setMessage("This will end the session and stop automatic reconnection.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Disconnect", (dialog, which) -> stop("Disconnected"))
+            .create();
+        disconnectDialog.setOnDismissListener(dialog -> disconnectDialog = null);
+        disconnectDialog.show();
+        disconnectDialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).requestFocus();
+    }
     void stop(String message){
+        if (disconnectDialog != null) disconnectDialog.dismiss();
         Session old=session; session=null;
         retryHandler.removeCallbacksAndMessages(null);
         if(old!=null) old.cancelAttempt();
