@@ -37,6 +37,8 @@ Copy **`android\build\Kishi-WiFi.apk`** to the phone and tap it to install. If p
 
 **Saved receivers.** Tap **Profiles → Save current address** and give the PC a name. The app restores the last address on launch. To switch PCs, disconnect and select another profile. Each receiver launch generates a fresh pairing code.
 
+**Automatic reconnect.** After pairing, the app retries a dropped connection after 1, 2, 4, then 8 seconds between attempts. Tap **Disconnect** to cancel. If the PC receiver restarts, enter its new pairing code.
+
 **Receiver RTT.** About once per second, the phone times an input report that requests an acknowledgement. In gamepad mode the receiver acknowledges it after applying the report to the virtual controller. The displayed milliseconds cover that round trip. Game rendering and display latency are outside the measurement.
 
 ## Troubleshooting
@@ -46,7 +48,7 @@ Copy **`android\build\Kishi-WiFi.apk`** to the phone and tap it to install. If p
 | The receiver reports `Cannot open ViGEmBus` | Install the driver on Windows and restart the receiver. |
 | The phone cannot pair | Check the current code, the PC’s LAN address, and private-network firewall access for TCP port `26760`. Guest Wi-Fi may isolate devices. |
 | The phone connects but the game sees no input | Check the controller in `joy.cpl`. Use normal receiver mode for games. |
-| Input stops when switching apps | Return to Kishi Wi-Fi and reconnect. Leaving the activity ends the session and the receiver releases held controls. |
+| Input stops when switching apps | Return to Kishi Wi-Fi. The app releases the connection while paused and attempts to reconnect when the same activity resumes. |
 
 To inspect incoming controller states in the terminal, stop the receiver with **Ctrl+C** and start monitor mode:
 

@@ -15,6 +15,10 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
     Button connect;
     TextView status;
     Session session;
+    boolean pairedThisRun;
+    int retrySeconds = 1;
+    String resumeAddress, resumeCode;
+    final android.os.Handler retryHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     int device = -1, buttons, hat, lt, rt;
     boolean lbTrigger, rbTrigger;
     short lx, ly, rx, ry;
@@ -181,7 +185,7 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
             String ip = host.getText().toString().trim(), code = pin.getText().toString();
             if(ip.isEmpty() || !code.matches("[0-9]{6}")) { status.setText("Enter the PC address and six-digit code."); return; }
             getPreferences(0).edit().putString("host",ip).apply();
-            session = new Session(ip,code); emit(); session.start();
+            beginAttempt(ip,code);
             ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(pin.getWindowToken(),0); host.setEnabled(false); pin.setEnabled(false); linkState.setText("Pairing…"); status.setText("Contacting receiver…"); connect.setText("Disconnect");
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         });
@@ -198,27 +202,58 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
             paint.setColor(active?ink:white);paint.setTextSize(11);paint.setTextAlign(android.graphics.Paint.Align.CENTER);
             c.drawText(text,x,y+4,paint);
         }
-        void stick(android.graphics.Canvas c,int x,int y,short dx,short dy){
-            dot(c,x,y,19,0xff45625c);dot(c,x,y,17,ink);
+        void stick(android.graphics.Canvas c,int x,int y,short dx,short dy,String name,int mask){
+            dot(c,x,y,19,(buttons&mask)!=0?lime:0xff45625c);dot(c,x,y,17,ink);
             dot(c,x+dx/32767f*10,y-dy/32767f*10,7,lime);
+            paint.setTextAlign(android.graphics.Paint.Align.CENTER);paint.setTextSize(11);
+            paint.setColor((buttons&mask)!=0?lime:white); c.drawText(name,x,y+31,paint);
         }
         protected void onDraw(android.graphics.Canvas c){
-            float scale=Math.min(getWidth()/320f,getHeight()/118f);
-            c.save();c.translate((getWidth()-320*scale)/2,(getHeight()-118*scale)/2);c.scale(scale,scale);
+            float scale=Math.min(getWidth()/320f,getHeight()/143f);
+            c.save();c.translate((getWidth()-320*scale)/2,(getHeight()-143*scale)/2);c.scale(scale,scale);c.translate(0,25);
             paint.setColor(0xff131f20); c.drawRoundRect(6,15,314,113,30,30,paint);
-            stick(c,54,47,lx,ly);stick(c,204,84,rx,ry);
+            stick(c,54,47,lx,ly,"L3",64);stick(c,204,79,rx,ry,"R3",128);
             key(c,98,60,"↑",1);key(c,98,98,"↓",2);key(c,79,79,"‹",4);key(c,117,79,"›",8);
             key(c,260,32,"Y",32768);key(c,240,52,"X",16384);key(c,280,52,"B",8192);key(c,260,72,"A",4096);
             for(int i=0;i<2;i++){
-                int x=i==0?28:230;
-                paint.setColor(0xff47615a);c.drawRoundRect(x,6,x+62,12,3,3,paint);
+                int x=i==0?14:174;
                 int v=i==0?(lbTrigger?255:lt):(rbTrigger?255:rt);
-                paint.setColor(lime);c.drawRoundRect(x,6,x+62*v/255f,12,3,3,paint);
+                boolean bumper=(buttons&(i==0?256:512))!=0;
+                paint.setColor(bumper?lime:0xff37514d);c.drawRoundRect(x,-21,x+36,4,8,8,paint);
+                paint.setTextAlign(android.graphics.Paint.Align.CENTER);paint.setTextSize(13);
+                paint.setColor(bumper?ink:white);c.drawText(i==0?"LB":"RB",x+18,-4,paint);
+                paint.setColor(v>0?lime:white);c.drawText(i==0?"LT":"RT",x+57,-4,paint);
+                paint.setColor(0xff47615a);c.drawRoundRect(x+72,-12,x+130,-5,3,3,paint);
+                paint.setColor(lime);c.drawRoundRect(x+72,-12,x+72+58*v/255f,-5,3,3,paint);
             }
             c.restore();
         }
     }
+    void beginAttempt(String address,String code){
+        session = new Session(address,code);
+        host.setEnabled(false); pin.setEnabled(false); connect.setText("Disconnect");
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        session.start();
+    }
+    void retry(Session failed){
+        if(session!=failed || failed.retryPending) return;
+        failed.retryPending=true;
+        failed.cancelAttempt();
+        latency.setText("Receiver RTT  ·  —");
+        linkState.setText("Reconnecting"); linkState.setTextColor(white);
+        int delay=retrySeconds;
+        retrySeconds=Math.min(8,delay*2);
+        status.setText("Connection lost. Retrying in "+delay+" s…");
+        retryHandler.postDelayed(()->{
+            if(session==failed) beginAttempt(failed.address,failed.code);
+        },delay*1000L);
+    }
     class Session extends Thread {
+        boolean ready, retryPending;
+        void cancelAttempt(){
+            interrupt();
+            try{socket.close();}catch(IOException ignored){}
+        }
         final String address, code;
         final Socket socket = new Socket();
         final BlockingQueue<byte[]> frames = new ArrayBlockingQueue<>(128);
@@ -228,30 +263,37 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
             try{
                 if(in.readUnsignedByte()!=82) return; // R advertises RTT support.
                 supportsRtt=true;
+                socket.setSoTimeout(5000); // A missed probe also detects silent network loss.
                 while(in.readUnsignedByte()==65){
                     long elapsed=System.nanoTime()-sentAt;
                     sentAt=0;
                     String value=String.format(java.util.Locale.getDefault(),"Receiver RTT  ·  %.1f ms",elapsed/1_000_000.0);
-                    runOnUiThread(()->{if(session==this) latency.setText(value);});
+                    runOnUiThread(()->{if(session==this && !retryPending) latency.setText(value);});
                 }
             } catch(IOException ignored) {
-                // Closing the session also releases this blocking reader.
+                // EOF, reset, or a missing acknowledgement ends this attempt.
+            } finally {
+                try{socket.close();}catch(IOException ignored){}
             }
         }
         Session(String a,String c){address=a; code=c;}
         public void run(){
+            boolean awaitingPair=false;
             try(Socket s = socket) {
                 s.connect(new InetSocketAddress(address,26760),3000);
                 s.setTcpNoDelay(true); s.setSoTimeout(3000);
                 OutputStream out=s.getOutputStream();
                 out.write(("KSH1"+code).getBytes("US-ASCII"));
                 DataInputStream in=new DataInputStream(s.getInputStream());
-                if(in.readUnsignedShort()!=0x4f4b) throw new IOException("Pairing rejected");
-                runOnUiThread(() -> {if(session==this){linkState.setText("Connected"); linkState.setTextColor(lime); status.setText("Sending input to "+address);}});
+                awaitingPair=true;
+                if(in.readUnsignedShort()!=0x4f4b) throw new EOFException("Pairing rejected");
+                awaitingPair=false;
+                runOnUiThread(() -> {if(session==this && !retryPending){pairedThisRun=true; retrySeconds=1; ready=true; emit(); linkState.setText("Connected"); linkState.setTextColor(lime); status.setText("Sending input to "+address);}});
                 s.setSoTimeout(0);
                 new Thread(()->readAcks(in),"Kishi RTT reader").start();
                 long nextProbe=System.nanoTime();
-                byte[] last=new byte[12];
+                byte[] last=frames.take();
+                out.write(last);
                 while(!isInterrupted()){
                     byte[] next=frames.poll(100,TimeUnit.MILLISECONDS);
                     if(next!=null) last=next;
@@ -267,23 +309,31 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
                     }
                 }
             } catch(Exception e){
-                runOnUiThread(() -> {if(session==this) Bridge.this.stop(e instanceof EOFException ? "Pairing ended. Check the six-digit code on your PC." : "Receiver unavailable. Check the PC address, Wi-Fi and firewall.");});
+                boolean rejected=awaitingPair && e instanceof EOFException;
+                runOnUiThread(()->{
+                    if(session!=this || retryPending) return;
+                    if(rejected) Bridge.this.stop("Pairing declined. Enter the current code from the receiver.");
+                    else if(pairedThisRun) retry(this);
+                    else Bridge.this.stop("Receiver unavailable. Check the PC address, Wi-Fi and firewall.");
+                });
             }
         }
     }
     void stop(String message){
         Session old=session; session=null;
-        if(old!=null){old.interrupt(); try{old.socket.close();}catch(IOException ignored){}}
+        retryHandler.removeCallbacksAndMessages(null);
+        if(old!=null) old.cancelAttempt();
+        pairedThisRun=false; retrySeconds=1;
         device=-1; buttons=hat=lt=rt=0; lbTrigger=rbTrigger=false; lx=ly=rx=ry=0;
         latency.setText("Receiver RTT  ·  —"); scope.invalidate(); host.setEnabled(true); pin.setEnabled(true); linkState.setText("Offline"); linkState.setTextColor(white); connect.setText("Connect"); status.setText(message);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     void emit(){
-        scope.postInvalidateOnAnimation(); if(session==null) return;
+        scope.postInvalidateOnAnimation(); if(session==null || !session.ready || session.retryPending) return;
         byte[] frame=ByteBuffer.allocate(12).putShort((short)(buttons|hat))
             .put((byte)(lbTrigger?255:lt)).put((byte)(rbTrigger?255:rt))
             .putShort(lx).putShort(ly).putShort(rx).putShort(ry).array();
-        if(!session.frames.offer(frame)) stop("Network stalled. Reconnect to resume.");
+        if(!session.frames.offer(frame)) retry(session);
     }
     boolean accepts(InputEvent e){
         InputDevice d=e.getDevice();
@@ -326,13 +376,15 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
     public void onInputDeviceAdded(int id){refreshDevice();}
     public void onInputDeviceChanged(int id){refreshDevice();}
     public void onInputDeviceRemoved(int id){if(device==id) stop("Controller detached");refreshDevice();}
-    protected void onResume(){super.onResume(); refreshDevice(); getSystemService(InputManager.class).registerInputDeviceListener(this,null);}
-    protected void onPause(){getSystemService(InputManager.class).unregisterInputDeviceListener(this); stop("Disconnected"); super.onPause();}
+    protected void onResume(){super.onResume(); refreshDevice(); getSystemService(InputManager.class).registerInputDeviceListener(this,null);
+        if(resumeAddress!=null){
+            pairedThisRun=true;
+            linkState.setText("Reconnecting"); status.setText("Restoring receiver connection…");
+            beginAttempt(resumeAddress,resumeCode);
+            resumeAddress=null; resumeCode=null;
+        }
+    }
+    protected void onPause(){
+        if(session!=null && pairedThisRun){resumeAddress=session.address; resumeCode=session.code;}
+        getSystemService(InputManager.class).unregisterInputDeviceListener(this); stop("Disconnected"); super.onPause();}
 }
-
-
-
-
-
-
-
