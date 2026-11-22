@@ -12,7 +12,7 @@ try {
     Run javac @('--release','8','-classpath',$api,'-d','build/classes','Bridge.java')
     Run jar @('cf','build/classes.jar','-C','build/classes','.')
     Run "$bt/d8.bat" @('--lib',$api,'--min-api','23','--output','build/dex','build/classes.jar')
-    Run "$bt/aapt.exe" @('package','-f','-M','AndroidManifest.xml','-I',$api,'-F','build/raw.apk')
+    Run "$bt/aapt.exe" @('package','-f','-M','AndroidManifest.xml','-S','res','-I',$api,'-F','build/raw.apk')
     Push-Location build/dex
     try { Run "$bt/aapt.exe" @('add','../raw.apk','classes.dex') } finally { Pop-Location }
     Run "$bt/zipalign.exe" @('-f','4','build/raw.apk','build/aligned.apk')

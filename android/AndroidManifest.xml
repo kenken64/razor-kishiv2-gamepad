@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="net.kishi.bridge" android:versionCode="10" android:versionName="1.9">
     <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="35"/>
     <uses-permission android:name="android.permission.INTERNET"/>
-    <application android:label="Kishi Wi-Fi" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+    <application android:label="Kishi Wi-Fi" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity android:name=".Bridge" android:screenOrientation="sensorLandscape" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
