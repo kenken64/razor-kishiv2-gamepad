@@ -76,7 +76,7 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         android.app.AlertDialog.Builder dialog = new android.app.AlertDialog.Builder(this)
             .setTitle("Receiver profiles").setNegativeButton("Close", null)
             .setPositiveButton("Save current address", (d,w) -> saveProfile());
-        if (rows.length == 0) dialog.setMessage("Save your PC address under a name to use it again.");
+        if (rows.length == 0) dialog.setMessage("Save your receiver address under a name to use it again.");
         else dialog.setItems(rows, (d,index) -> {
             if (session != null) {
                 Toast.makeText(this,"Disconnect to switch receivers.",Toast.LENGTH_SHORT).show();
@@ -143,6 +143,13 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         LinearLayout header=new LinearLayout(this); header.setGravity(Gravity.CENTER_VERTICAL); root.addView(header);
         TextView title=label("Kishi Wi-Fi",32,white,true); title.setLetterSpacing(-0.045f);
         header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
+        Button receive=new Button(this,null,android.R.attr.borderlessButtonStyle);
+        receive.setText("Receiver mode"); receive.setTextColor(lime); receive.setAllCaps(false);
+        receive.setOnClickListener(v -> {
+            if(session!=null) Toast.makeText(this,"Disconnect before switching modes.",Toast.LENGTH_SHORT).show();
+            else startActivity(new android.content.Intent(this,ReceiverActivity.class));
+        });
+        header.addView(receive);
         linkState=label("Offline",13,white,true); linkState.setBackground(surface(card,20,0xff445654));
         linkState.setPadding(dp(13),dp(5),dp(13),dp(5)); header.addView(linkState);
         LinearLayout body=new LinearLayout(this); body.setOrientation(wide?0:1); insert(root,body,14,-2);
@@ -169,13 +176,13 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
             codeParams.leftMargin=dp(8); fields.addView(codeColumn,codeParams);
             form.addView(fields);
         }
-        host=field(addressColumn,"PC address","192.168.0.203",android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        host=field(addressColumn,"Receiver address","192.168.0.203",android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_URI);
         host.setText(getPreferences(0).getString("host",""));
         pin=field(codeColumn,"Pairing code","6 digits",android.text.InputType.TYPE_CLASS_NUMBER);
         pin.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(6)});
         connect=new Button(this); connect.setText("Connect"); connect.setAllCaps(false); connect.setTextColor(ink); connect.setTextSize(17);
         connect.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x44000000),surface(lime,12,0),null));
-        insert(form,connect,16,50); status=label("Use the code shown on your PC.",14,soft,false);
+        insert(form,connect,16,50); status=label("Use the code shown on your receiver.",14,soft,false);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); insert(form,status,10,-2);
         if(wide){
             body.addView(monitor,new LinearLayout.LayoutParams(0,-2,1));
@@ -191,7 +198,7 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
                 return;
             }
             String ip = host.getText().toString().trim(), code = pin.getText().toString();
-            if(ip.isEmpty() || !code.matches("[0-9]{6}")) { status.setText("Enter the PC address and six-digit code."); return; }
+            if(ip.isEmpty() || !code.matches("[0-9]{6}")) { status.setText("Enter the receiver address and six-digit code."); return; }
             getPreferences(0).edit().putString("host",ip).apply();
             beginAttempt(ip,code);
             ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(pin.getWindowToken(),0); linkState.setText("Pairing…"); status.setText("Contacting receiver…"); connect.setText("Disconnect");
@@ -322,7 +329,7 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
                     if(session!=this || retryPending) return;
                     if(rejected) Bridge.this.stop("Pairing declined. Enter the current code from the receiver.");
                     else if(pairedThisRun) retry(this);
-                    else Bridge.this.stop("Receiver unavailable. Check the PC address, Wi-Fi and firewall.");
+                    else Bridge.this.stop("Receiver unavailable. Check the receiver address, Wi-Fi and firewall.");
                 });
             }
         }

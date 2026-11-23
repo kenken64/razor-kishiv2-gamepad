@@ -9,7 +9,7 @@ try {
     $bt = "$Sdk/build-tools/35.0.0"
     $api = "$Sdk/platforms/android-35/android.jar"
     New-Item -ItemType Directory -Force build/classes,build/dex | Out-Null
-    Run javac @('--release','8','-classpath',$api,'-d','build/classes','Bridge.java')
+    Run javac @('-encoding','UTF-8','--release','8','-classpath',$api,'-d','build/classes','Bridge.java','ReceiverActivity.java','ReceiverService.java','GamepadHelper.java','GamepadReport.java','ReceiverProtocol.java','HelperLink.java','HelperSetup.java')
     Run jar @('cf','build/classes.jar','-C','build/classes','.')
     Run "$bt/d8.bat" @('--lib',$api,'--min-api','23','--output','build/dex','build/classes.jar')
     Run "$bt/aapt.exe" @('package','-f','-M','AndroidManifest.xml','-S','res','-I',$api,'-F','build/raw.apk')
