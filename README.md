@@ -1,6 +1,6 @@
 # Kishi Wi-Fi
 
-Use a Razer Kishi V2 attached to an Android phone as a wireless gamepad for Windows, Linux, macOS, or a second Android device. The phone reads the Kishi over USB-C and sends buttons, sticks, and triggers over Wi-Fi. The Rust desktop receiver creates an Xbox 360 controller on Windows and a virtual gamepad on Linux or macOS.
+Use a Razer Kishi V2 attached to an Android phone as a wireless gamepad for Windows, Linux, macOS, or a second Android device. The phone reads the Kishi over USB-C and sends buttons, sticks, and triggers over Wi-Fi. The Rust desktop receiver creates an Xbox 360 controller on Windows and a virtual gamepad on Linux. Native SwiftUI and WPF receivers provide the macOS and Windows apps.
 
 The phone and PC must be on the same local network. The PC can use Ethernet. Use a trusted LAN because the pairing code and controller reports travel over unencrypted TCP.
 
@@ -8,14 +8,18 @@ The phone and PC must be on the same local network. The PC can use Ethernet. Use
 
 Install Rust with Cargo and the Windows MSVC build tools. Install the [ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0) on the PC that will run the game.
 
-From the repository root, run these commands in PowerShell:
+Build the receiver, then launch the Windows dashboard:
 
 ```powershell
-ipconfig
-cargo run --locked --release --manifest-path .\server\Cargo.toml
+cargo build --locked --release --manifest-path .\server\Cargo.toml
+.\server\Launch-Receiver.ps1
 ```
 
-Find the IPv4 address of the PC’s active Ethernet or Wi-Fi adapter in the first command’s output. The receiver prints a six-digit pairing code when it starts listening on TCP port `26760`. Keep the receiver running while playing. If Windows Firewall prompts you, allow the receiver on your private network.
+The WPF dashboard matches the macOS receiver: pairing code, Windows LAN address, connection status, live sticks, triggers, D-pad, buttons, activity log, and Gamepad/Monitor modes. It starts the receiver automatically and hides its console window.
+
+If PowerShell blocks the script, run it with `powershell -ExecutionPolicy Bypass -File .\server\Launch-Receiver.ps1`. Allow the receiver on your private network if Windows Firewall prompts. Keep the dashboard open while playing.
+
+Use **Monitor** mode to verify pairing and live input before ViGEmBus is installed; Gamepad mode publishes the Xbox 360 controller. The Rust command-line receiver is still available with `cargo run --locked --release --manifest-path .\server\Cargo.toml`.
 
 ## Start the Linux receiver
 
@@ -31,24 +35,33 @@ Find your active LAN IPv4 address with `ip -br -4 addr`. Enter it and the six-di
 
 ## Start the macOS receiver
 
-The receiver publishes **Kishi Wi-Fi Gamepad** through IOKit. Gamepad mode requires a signing identity and a macOS provisioning profile for an explicit App ID authorized for Apple’s virtual HID entitlement. To test pairing and view live input before signing, extract the archive for your processor and run `./kishi-receiver --monitor`. [Apple virtual HID entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.hid.virtual.device)
+The macOS app is a native SwiftUI receiver. It shows the Mac’s LAN address, the six-digit pairing code, connection status, live sticks, triggers, D-pad, buttons, and an activity log.
 
-From the extracted directory, substitute your profile and signing identity, then launch the signed receiver in Terminal to see the pairing code.
-
-```sh
-sh sign-macos.sh ./kishi-receiver "/path/to/profile.provisionprofile" "Apple Development: Your Name (TEAMID)"
-"./Kishi Receiver.app/Contents/MacOS/kishi-receiver"
-```
-
-To build from source with Rust and Xcode Command Line Tools, run these commands from the repository root.
+Build it with Xcode Command Line Tools, then open it:
 
 ```sh
-cargo build --locked --release --manifest-path server/Cargo.toml --target-dir server/target
-sh server/sign-macos.sh server/target/release/kishi-receiver "/path/to/profile.provisionprofile" "Apple Development: Your Name (TEAMID)"
-"./Kishi Receiver.app/Contents/MacOS/kishi-receiver"
+./macos/build.sh
+open "macos/build/Kishi Receiver.app"
 ```
 
-Enter the Mac’s LAN IPv4 address (shown in **System Settings → Network**) and the six-digit pairing code on the phone. Allow incoming connections if macOS prompts. Run `hidutil list` to check that **Kishi Wi-Fi Gamepad** appears, then test the buttons and sticks in a HID-controller-compatible game.
+For a universal build on Apple Silicon, use `ARCHS=universal ./macos/build.sh`.
+
+Enter the address shown in the app (for example `192.168.0.38`) and the pairing code on the phone, then tap **Connect**. Allow incoming connections and local-network access if macOS prompts.
+
+**Gamepad mode.** The app publishes **Kishi Wi-Fi Gamepad** through IOKit. This requires signing with a macOS provisioning profile for an explicit App ID authorized for Apple’s virtual HID entitlement. Build with your identity and profile:
+
+```sh
+SIGNING_IDENTITY="Apple Development: Your Name (TEAMID)" \
+PROVISIONING_PROFILE="/path/to/profile.provisionprofile" \
+./macos/build.sh
+open "macos/build/Kishi Receiver.app"
+```
+
+To re-sign an existing build, use `sh macos/sign-macos.sh "macos/build/Kishi Receiver.app" "/path/to/profile.provisionprofile" "Apple Development: Your Name (TEAMID)"`. [Apple virtual HID entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.hid.virtual.device)
+
+**Monitor mode.** Without the entitlement the app starts in **Monitor** and still pairs and displays live input, but games receive nothing. Switch modes while the receiver is stopped. Run `hidutil list` to confirm that **Kishi Wi-Fi Gamepad** appears in gamepad mode, then test it in a HID-controller-compatible game.
+
+The original Rust command-line receiver remains available in `server/`. It supports `--monitor` without signing, and `server/sign-macos.sh` can sign the CLI executable for gamepad mode.
 
 ## Build and install the Android app
 
@@ -93,7 +106,7 @@ Run one of those commands. It installs the APK and starts the shell helper that 
 | --- | --- |
 | The receiver reports `Cannot open ViGEmBus` | Install the driver on Windows and restart the receiver. |
 | The phone cannot pair | Check the current code, the PC’s LAN address, and private-network firewall access for TCP port `26760`. Guest Wi-Fi may isolate devices. |
-| The phone connects but the game sees no input | Use gamepad mode. Check `joy.cpl` on Windows, `evtest` on Linux, or `hidutil list` on macOS. |
+| The phone connects but the game sees no input | Use gamepad mode. On macOS, the app falls back to Monitor when unsigned; sign it with the virtual HID entitlement. Check `joy.cpl` on Windows, `evtest` on Linux, or `hidutil list` on macOS. |
 | Input stops when switching apps | Return to Kishi Wi-Fi. The app releases the connection while paused and attempts to reconnect when the same activity resumes. |
 
 To inspect incoming controller states in the terminal, stop the receiver with **Ctrl+C** and start monitor mode:

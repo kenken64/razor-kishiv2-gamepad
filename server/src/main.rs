@@ -131,7 +131,9 @@ fn receive(
 }
 
 fn main() -> Result<()> {
-    let monitor = std::env::args().any(|a| a == "--monitor");
+    let args: Vec<String> = std::env::args().collect();
+    let monitor = args.iter().any(|a| a == "--monitor");
+    let ui = args.iter().any(|a| a == "--ui");
     let mut target = if monitor {
         None
     } else {
@@ -142,13 +144,27 @@ fn main() -> Result<()> {
     println!("{} [LISTENING] TCP 26760. Pairing code {pin}", timestamp());
     for socket in listener.incoming() {
         let mut previous = None;
+        let mut last_ui = Instant::now() - Duration::from_secs(1);
         let socket = socket?;
         let peer = socket.peer_addr()?;
         let mut paired = false;
         let result = receive(socket, &pin, &mut paired, |state| {
+            if ui && last_ui.elapsed() >= Duration::from_millis(50) {
+                println!(
+                    "[STATE] {} {} {} {} {} {} {}",
+                    state.buttons,
+                    state.left_trigger,
+                    state.right_trigger,
+                    state.thumb_lx,
+                    state.thumb_ly,
+                    state.thumb_rx,
+                    state.thumb_ry
+                );
+                last_ui = Instant::now();
+            }
             if let Some(pad) = &mut target {
                 pad.update(&state)?;
-            } else if previous != Some(state) {
+            } else if !ui && previous != Some(state) {
                 println!("{} [INPUT] {peer} {state:?}", timestamp());
                 previous = Some(state);
             }

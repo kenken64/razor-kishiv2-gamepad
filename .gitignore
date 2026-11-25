@@ -2,3 +2,5 @@
 /server/target/
 *.jks
 *.keystore
+/macos/build/
+.DS_Store
