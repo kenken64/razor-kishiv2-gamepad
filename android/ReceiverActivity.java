@@ -36,6 +36,8 @@ public class ReceiverActivity extends Activity {
     };
     public void onCreate(Bundle saved) {
         super.onCreate(saved);
+        getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
+            | android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         setTitle("Gamepad receiver");
         ScrollView scroll=new ScrollView(this);
         LinearLayout root=new LinearLayout(this); root.setOrientation(1);

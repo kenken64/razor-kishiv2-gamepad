@@ -1,6 +1,8 @@
 package net.kishi.bridge;
 
 import android.app.Activity;
+import android.graphics.Rect;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.*;
 import android.widget.*;
@@ -132,13 +134,51 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         }
         controllerName.setText(name);
     }
+
+    void revealFocusedField(ScrollView scroll){
+        View focused=getCurrentFocus();
+        if(focused==null) return;
+        Rect reveal=new Rect();
+        View field=android.view.ViewGroup.class.isInstance(focused.getParent()) ? (View)focused.getParent() : focused;
+        field.getDrawingRect(reveal);
+        scroll.offsetDescendantRectToMyCoords(field,reveal);
+        if(connect!=null){
+            Rect rect=new Rect();
+            connect.getDrawingRect(rect);
+            scroll.offsetDescendantRectToMyCoords(connect,rect);
+            reveal.union(rect);
+        }
+        int top=scroll.getPaddingTop()+dp(10);
+        int bottom=scroll.getHeight()-scroll.getPaddingBottom()-dp(10);
+        int target=reveal.height()>bottom-top ? reveal.top-top : reveal.bottom-bottom;
+        scroll.smoothScrollTo(0,Math.max(0,target));
+    }
+
+    @android.annotation.TargetApi(30)
+    void configureEdgeToEdge(ScrollView scroll){
+        Window window=getWindow();
+        window.setDecorFitsSystemWindows(false);
+        window.setStatusBarColor(0x00000000); window.setNavigationBarColor(0x00000000);
+        WindowInsetsController controller=window.getInsetsController();
+        if(controller!=null) controller.setSystemBarsAppearance(0,
+            WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+        scroll.setOnApplyWindowInsetsListener((v,insets)->{
+            android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.displayCutout());
+            android.graphics.Insets ime=insets.getInsets(WindowInsets.Type.ime());
+            v.setPadding(bars.left,bars.top,bars.right,Math.max(bars.bottom,ime.bottom));
+            if(ime.bottom>0) v.postDelayed(()->revealFocusedField(scroll),250);
+            return insets;
+        });
+        scroll.requestApplyInsets();
+    }
+
     public void onCreate(Bundle b) {
         super.onCreate(b);
         getWindow().setStatusBarColor(ink); getWindow().setNavigationBarColor(ink);
-        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         boolean wide=getResources().getConfiguration().screenWidthDp>=600;
         ScrollView scroll=new ScrollView(this); scroll.setFillViewport(true); scroll.setBackgroundColor(ink);
-        scroll.setOnApplyWindowInsetsListener((v,i)->{v.setPadding(i.getSystemWindowInsetLeft(),i.getSystemWindowInsetTop(),i.getSystemWindowInsetRight(),i.getSystemWindowInsetBottom());return i;});
         LinearLayout root=column(); root.setPadding(dp(20),dp(14),dp(20),dp(20)); root.setFocusableInTouchMode(true); scroll.addView(root);
         LinearLayout header=new LinearLayout(this); header.setGravity(Gravity.CENTER_VERTICAL); root.addView(header);
         TextView title=label("Kishi Wi-Fi",32,white,true); title.setLetterSpacing(-0.045f);
@@ -146,8 +186,12 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         Button receive=new Button(this,null,android.R.attr.borderlessButtonStyle);
         receive.setText("Receiver mode"); receive.setTextColor(lime); receive.setAllCaps(false);
         receive.setOnClickListener(v -> {
-            if(session!=null) Toast.makeText(this,"Disconnect before switching modes.",Toast.LENGTH_SHORT).show();
-            else startActivity(new android.content.Intent(this,ReceiverActivity.class));
+            if(session!=null) { Toast.makeText(this,"Disconnect before switching modes.",Toast.LENGTH_SHORT).show(); return; }
+            getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+            ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE))
+                .hideSoftInputFromWindow(pin.getWindowToken(),0);
+            pin.clearFocus(); host.clearFocus();
+            startActivity(new android.content.Intent(this,ReceiverActivity.class));
         });
         header.addView(receive);
         linkState=label("Offline",13,white,true); linkState.setBackground(surface(card,20,0xff445654));
@@ -189,8 +233,13 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
             LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1); p.leftMargin=dp(14); body.addView(form,p);
         }else{insert(body,monitor,0,-2);insert(body,form,12,-2);}
         setContentView(scroll); refreshDevice();
-        host.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_NEXT | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
-        pin.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE | android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+        if(Build.VERSION.SDK_INT>=30) configureEdgeToEdge(scroll);
+        View.OnFocusChangeListener reveal=(view,hasFocus)->{if(hasFocus) scroll.postDelayed(()->revealFocusedField(scroll),350);};
+        host.setOnFocusChangeListener(reveal); pin.setOnFocusChangeListener(reveal);
+        int noFullscreen=android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
+            | android.view.inputmethod.EditorInfo.IME_FLAG_NO_FULLSCREEN;
+        host.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_NEXT | noFullscreen);
+        pin.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE | noFullscreen);
         pin.setOnEditorActionListener((v,action,event)->{if(action!=android.view.inputmethod.EditorInfo.IME_ACTION_DONE)return false; connect.performClick();return true;});
         connect.setOnClickListener(v -> {
             if (session != null) {
