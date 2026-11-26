@@ -1,0 +1,14 @@
+{
+  "name": "kishi-character-preview",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild preview.js --bundle --minify --target=safari16 --outfile=../build/preview/scene.js"
+  },
+  "dependencies": {
+    "three": "0.169.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

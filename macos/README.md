@@ -4,7 +4,7 @@ Native SwiftUI receiver for the Kishi Wi-Fi protocol. It listens on TCP `26760`,
 
 ## Build and run
 
-Requirements: macOS 13 or newer and Xcode Command Line Tools (`xcode-select --install`).
+Requirements: macOS 13 or newer with Node.js 18 or newer, npm, and Xcode Command Line Tools (`xcode-select --install`).
 
 ```sh
 ./macos/build.sh
@@ -25,12 +25,29 @@ Run the protocol and HID-report tests:
 ./macos/test.sh
 ```
 
+## Character preview
+
+The character preview opens on Sun Wukong. Choose a character by its English or Chinese name. The preview runs locally and responds to incoming reports in both receiver modes. Use the eye icon in the header to hide the model and show the live input monitor. Click it again to restore the model. The app remembers your choice.
+
+| Action | Controller | Preview |
+| --- | --- | --- |
+| Walk or run | Left stick, hold RB to run | Drag Move or use WASD. Toggle Run or hold Shift. |
+| Orbit and tilt | Right stick | Drag Look. Reset camera restores the starting angle. |
+| Somersault jump | A | Jump or J |
+| Swing or chain a follow-up | X | Fight or K |
+| Weapon slam and shockwave | Y | Slam or I |
+| Directional dodge or backstep | B | Dodge or L |
+| 360° weapon swing | RT | Spin or U |
+| Fullscreen | | Fullscreen or F11. Escape returns to the dashboard. |
+
+Click inside the preview for keyboard controls. The model picker includes GLBs packaged from `server/assets` and compatible humanoid GLBs in `~/Library/Application Support/Kishi Receiver/Characters/`. Reopen the picker after copying a file. Models with matching filenames in the user folder override the bundled copy. The build downloads the rendering dependencies with npm and packages them with the app. Pairing and animation work offline on a local network.
+
 ## Modes
 
 - **Gamepad** creates **Kishi Wi-Fi Gamepad** with IOKit and sends HID reports to macOS. If creation fails, the app logs the reason and falls back to Monitor.
 - **Monitor** pairs with the phone and displays input but does not publish a gamepad. Use it to verify networking and controls without signing.
 
-The mode picker is available while the receiver is stopped. Pairing codes are regenerated on every start and restart.
+Use the mode picker at any time. Changing modes while running restarts the receiver. Pairing codes are regenerated on every start and restart.
 
 ## Signing for gamepad output
 

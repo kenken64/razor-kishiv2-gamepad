@@ -141,8 +141,9 @@ final class ReceiverModel: ObservableObject {
     }
 
     func selectMode(_ mode: ReceiverMode) {
-        guard !isRunning else { return }
+        guard selectedMode != mode else { return }
         selectedMode = mode
+        if isRunning { restart() }
     }
 
     func clearLogs() {

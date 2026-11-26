@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
+qrcodegen = "1.8.0"
 
 [target.'cfg(windows)'.dependencies]
 vigem-client = "0.1.4"

@@ -1,4 +1,6 @@
-﻿$ErrorActionPreference = 'Stop'
+﻿param([switch]$StartMinimized)
+$ErrorActionPreference = 'Stop'
+$forwardedSwitch = if ($StartMinimized) { '-StartMinimized' } else { '' }
 $windowsPowerShell = if ($env:SystemRoot) {
     Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 } else {
@@ -6,7 +8,7 @@ $windowsPowerShell = if ($env:SystemRoot) {
 }
 if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne [System.Threading.ApartmentState]::STA) {
     if ($PSVersionTable.PSEdition -ne 'Desktop' -and $env:SystemRoot -and (Test-Path -LiteralPath $windowsPowerShell) -and $PSCommandPath) {
-        Start-Process -FilePath $windowsPowerShell -ArgumentList "-STA -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+        Start-Process -FilePath $windowsPowerShell -WindowStyle Hidden -ArgumentList "-STA -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $forwardedSwitch"
         exit
     }
     throw 'This UI needs a single-threaded apartment. Run it with Windows PowerShell.'
@@ -22,7 +24,7 @@ try {
 }
 if (-not $wpfReady) {
     if ($PSVersionTable.PSEdition -ne 'Desktop' -and $windowsPowerShell -and (Test-Path -LiteralPath $windowsPowerShell) -and $PSCommandPath) {
-        Start-Process -FilePath $windowsPowerShell -ArgumentList "-STA -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+        Start-Process -FilePath $windowsPowerShell -WindowStyle Hidden -ArgumentList "-STA -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $forwardedSwitch"
         exit
     }
     throw 'WPF is not available. Run this script with Windows PowerShell.'
@@ -58,14 +60,14 @@ try {
 
 $names = @(
     'StatusBadge','StatusDot','StatusText','RestartButton','StartButton',
-    'PairingCode','AddressText','CopyButton','PairingStatusDot','PairingStatus',
+    'PairingCode','QrButton','QrPopup','PairQrImage','AddressText','CopyButton','PairingStatusDot','PairingStatus',
     'GamepadButton','MonitorButton','ModeDetail','GamepadStatusIcon','GamepadStatus',
     'GamepadWarning','GamepadWarningText','PeerText',
     'LeftStick','RightStick','LeftDot','LeftValues','RightDot','RightValues','LTFill','RTFill',
     'LTPercent','RTPercent','LTTrack','RTTrack',
     'DpadUp','DpadLeft','DpadDown','DpadRight','LiveDot','LiveText',
     'ActivityBox','ClearButton','ButtonGrid',
-    'Dashboard','PreviewHost','WukongPreview','FullscreenOverlay','FullscreenHost','EnterFullscreen','ExitFullscreen',
+    'ModelVisibility','ModelEyeSlash','CharacterCard','Dashboard','PreviewHost','WukongPreview','FullscreenOverlay','FullscreenHost','EnterFullscreen','ExitFullscreen',
     'CharacterName','ChooseModel','FullscreenChooseModel','Wukong','WukongCamera','WukongFloor','WukongImpact','SpinTrail','SpinButton','SlamButton','JumpButton','FightButton','DodgeButton','RunToggle','ResetCamera','WukongYaw','WukongFlip','WukongMove','WukongHint'
 )
 $script:ui = @{}
@@ -540,13 +542,13 @@ function Reset-Input {
 function Set-Input([int]$flags, [int]$lt, [int]$rt, [int]$lx, [int]$ly, [int]$rx, [int]$ry) {
     if ($rt -ge 140 -and !$script:spinTriggerDown) {
         $script:spinTriggerDown = $true
-        if ($script:scene) { $script:scene.Spin() }
+        if ($script:modelVisible -and $script:scene) { $script:scene.Spin() }
     } elseif ($rt -le 80) {
         $script:spinTriggerDown = $false
     }
     $pressed = $flags -band (-bnot $script:phoneFlags)
     $script:phoneFlags = $flags
-    if ($script:scene) {
+    if ($script:modelVisible -and $script:scene) {
         if ($pressed -band 0x1000) { $script:scene.Jump() }
         if ($pressed -band 0x2000) { $script:scene.Dodge() }
         if ($pressed -band 0x8000) { $script:scene.Slam() }
@@ -588,8 +590,6 @@ function Update-ModeVisuals {
         $script:ui.MonitorButton.Foreground = $script:ink
         $script:ui.ModeDetail.Text = 'Pairs and shows input without creating a gamepad.'
     }
-    $script:ui.GamepadButton.IsEnabled = -not $script:running
-    $script:ui.MonitorButton.IsEnabled = -not $script:running
     Update-GamepadStatus
 }
 
@@ -616,15 +616,14 @@ function Update-Controls {
         $script:ui.StartButton.Style = $window.Resources['PrimaryButton']
         $script:ui.RestartButton.IsEnabled = $false
     }
-    $script:ui.GamepadButton.IsEnabled = -not $script:running
-    $script:ui.MonitorButton.IsEnabled = -not $script:running
 }
 
 function Set-Mode([string]$mode) {
-    if ($script:running) { return }
+    if ($script:mode -eq $mode) { return }
     $script:mode = $mode
     $script:ui.GamepadWarning.Visibility = 'Collapsed'
     Update-ModeVisuals
+    if ($script:running) { Restart-Receiver }
 }
 
 function Read-NewLines([string]$path, [hashtable]$state) {
@@ -665,7 +664,33 @@ function Show-GamepadWarning([string]$message) {
     $script:ui.GamepadWarningText.Text = $message
 }
 
+function Clear-PairingQr {
+    $script:ui.QrPopup.IsOpen = $false
+    $script:ui.QrButton.IsEnabled = $false
+    $script:ui.PairQrImage.Source = $null
+}
+
+function Set-PairingQr([string]$matrix) {
+    $rows = $matrix.Split('/')
+    $n = $rows.Count
+    if ($n -lt 21 -or $n -gt 177) { return }
+    $size = $n + 8
+    $pixels = [byte[]]::new($size * $size)
+    for ($i=0; $i -lt $pixels.Length; $i++) { $pixels[$i] = 255 }
+    for ($y=0; $y -lt $n; $y++) {
+        if ($rows[$y].Length -ne $n -or $rows[$y] -match '[^01]') { return }
+        for ($x=0; $x -lt $n; $x++) {
+            if ($rows[$y][$x] -eq '1') { $pixels[($y+4)*$size+$x+4] = 0 }
+        }
+    }
+    $script:ui.PairQrImage.Source = [Windows.Media.Imaging.BitmapSource]::Create(
+        $size,$size,96,96,[Windows.Media.PixelFormats]::Gray8,$null,$pixels,$size)
+    $script:ui.PairQrImage.Width = $script:ui.PairQrImage.Height = $size * 8
+    $script:ui.QrButton.IsEnabled = $true
+}
+
 function Handle-ReceiverLine([string]$line) {
+    if ($line.StartsWith('[PAIR-QR] ')) { Set-PairingQr $line.Substring(10); return }
     if ($line.StartsWith('[STATE] ')) {
         $values = $line.Substring(8).Trim() -split '\s+'
         if ($values.Count -eq 7) {
@@ -737,6 +762,7 @@ function Read-ReceiverLog {
         $code = $script:receiver.ExitCode
         Reset-Input
         $script:ui.PairingCode.Text = '------'
+        Clear-PairingQr
         Set-Status 'Error' '#FF8A8A'
         Set-PairingStatus ("Receiver exited with code " + $code) '#FF8A8A'
         Set-Live 'No phone' '#66706F'
@@ -785,11 +811,12 @@ function Start-Receiver {
     $script:pin = $null
     $script:peer = ''
     $script:ui.PairingCode.Text = '------'
+    Clear-PairingQr
     $script:ui.PeerText.Text = 'No phone connected'
     $script:ui.GamepadWarning.Visibility = 'Collapsed'
     Reset-Input
 
-    $arguments = @('--ui')
+    $arguments = @('--ui','--qr-host',$script:address)
     if ($script:mode -eq 'monitor') { $arguments += '--monitor' }
     try {
         $script:receiver = Start-Process -FilePath $exe -ArgumentList $arguments -WindowStyle Hidden `
@@ -821,6 +848,7 @@ function Stop-Receiver([bool]$quiet = $false) {
     $script:running = $false
     Reset-Input
     $script:ui.PairingCode.Text = '------'
+    Clear-PairingQr
     $script:ui.PeerText.Text = 'No phone connected'
     $script:ui.GamepadWarning.Visibility = 'Collapsed'
     Set-Status 'Stopped' '#8A9A97'
@@ -841,7 +869,8 @@ function Restart-Receiver {
     $restart = [Windows.Threading.DispatcherTimer]::new()
     $restart.Interval = [TimeSpan]::FromMilliseconds(350)
     $restart.Add_Tick({
-        $restart.Stop()
+        param($sender,$e)
+        $sender.Stop()
         Start-Receiver
     })
     $restart.Start()
@@ -877,8 +906,9 @@ foreach ($pad in $script:ui.LeftStick,$script:ui.RightStick) {
         Show-Stick $sender.Tag $axes[0] $axes[1]
     })
 }
-Initialize-Wukong
-if ('WukongScene' -as [type]) {
+function Initialize-PreviewControls {
+    Initialize-Wukong
+    if (!('WukongScene' -as [type])) { return }
     $script:ui.ChooseModel.Add_Click({ param($sender,$e) Show-CharacterPicker $sender })
     $script:ui.FullscreenChooseModel.Add_Click({ param($sender,$e) Show-CharacterPicker $sender })
     $script:ui.EnterFullscreen.Add_Click({ Set-WukongFullscreen $true })
@@ -899,6 +929,7 @@ if ('WukongScene' -as [type]) {
     $script:ui.ResetCamera.Add_Click({ if ($script:scene) { $script:scene.ResetCamera() } })
     $window.Add_PreviewKeyDown({
         param($sender,$e)
+        if (!$script:modelVisible) { return }
         $fullscreen = $script:ui.FullscreenOverlay.Visibility -eq 'Visible'
         if ($e.Key -eq 'F11' -or ($fullscreen -and $e.Key -eq 'Escape')) {
             if (!$e.IsRepeat) { Set-WukongFullscreen (!$fullscreen) }
@@ -929,8 +960,36 @@ if ('WukongScene' -as [type]) {
             $script:scene.Step($dt)
         }
     })
-    $script:frameTimer.Start()
 }
+
+function Set-ModelVisibility([bool]$visible) {
+    $script:modelVisible = $visible
+    $script:ui.CharacterCard.Visibility = if ($visible) { 'Visible' } else { 'Collapsed' }
+    $script:ui.ModelEyeSlash.Visibility = if ($visible) { 'Collapsed' } else { 'Visible' }
+    $label = if ($visible) { 'Hide 3D model' } else { 'Show 3D model' }
+    $script:ui.ModelVisibility.ToolTip = $label
+    [Windows.Automation.AutomationProperties]::SetName($script:ui.ModelVisibility, $label)
+    if ($visible) {
+        if (!$script:frameTimer) { Initialize-PreviewControls }
+        if ($script:frameTimer) {
+            $script:frameClock.Restart()
+            $script:frameTimer.Start()
+        }
+    } elseif ($script:frameTimer) {
+        $script:frameTimer.Stop()
+    }
+}
+
+$script:previewSettings = 'HKCU:\Software\Kishi Wi-Fi Receiver'
+$preference = Get-ItemProperty -LiteralPath $script:previewSettings -Name ShowModel -ErrorAction SilentlyContinue
+Set-ModelVisibility ($null -eq $preference -or $preference.ShowModel -ne 0)
+$script:ui.ModelVisibility.Add_Click({
+    Set-ModelVisibility (!$script:modelVisible)
+    try {
+        [void](New-Item -Path $script:previewSettings -Force)
+        [void](New-ItemProperty -LiteralPath $script:previewSettings -Name ShowModel -Value ([int]$script:modelVisible) -PropertyType DWord -Force)
+    } catch { Add-Activity 'Could not save the model visibility preference.' 'warning' }
+})
 Build-Chips
 $script:address = Get-WindowsAddress
 $script:ui.AddressText.Text = $script:address
@@ -947,6 +1006,7 @@ $script:ui.StartButton.Add_Click({
 $script:ui.RestartButton.Add_Click({ Restart-Receiver })
 $script:ui.GamepadButton.Add_Click({ Set-Mode 'gamepad' })
 $script:ui.MonitorButton.Add_Click({ Set-Mode 'monitor' })
+$script:ui.QrButton.Add_Click({ $script:ui.QrPopup.IsOpen = $true })
 $script:ui.CopyButton.Add_Click({
     if ($script:address -ne 'Unavailable') {
         try {
@@ -984,6 +1044,7 @@ $window.Add_Loaded({
 })
 
 try {
+    if ($StartMinimized) { $window.WindowState = 'Minimized' }
     [void]$window.ShowDialog()
 } finally {
     if ($script:running -or $script:receiver) { Stop-Receiver $true }

@@ -142,6 +142,22 @@ fn main() -> Result<()> {
     let listener = TcpListener::bind(("0.0.0.0", 26760))?;
     let pin = format!("{:06}", RandomState::new().hash_one("pair") % 1000000);
     println!("{} [LISTENING] TCP 26760. Pairing code {pin}", timestamp());
+    if let Some(host) = args
+        .windows(2)
+        .find(|p| p[0] == "--qr-host")
+        .and_then(|p| p[1].parse::<std::net::Ipv4Addr>().ok())
+    {
+        let text = format!("kishi://pair/{host}/{pin}");
+        let qr = qrcodegen::QrCode::encode_text(&text, qrcodegen::QrCodeEcc::Medium)?;
+        let rows: Vec<String> = (0..qr.size())
+            .map(|y| {
+                (0..qr.size())
+                    .map(|x| if qr.get_module(x, y) { '1' } else { '0' })
+                    .collect()
+            })
+            .collect();
+        println!("[PAIR-QR] {}", rows.join("/"));
+    }
     for socket in listener.incoming() {
         let mut previous = None;
         let mut ui_buttons = 0;

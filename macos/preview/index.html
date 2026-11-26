@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data: blob:; connect-src blob: data:">
+<link rel="stylesheet" href="style.css">
+<title>Character preview</title>
+</head>
+<body>
+<main id="preview">
+<header><select id="models" aria-label="Choose character"></select>
+<button id="fullscreen">Fullscreen</button></header>
+<section id="stage" tabindex="0" aria-label="3D character preview">
+<canvas></canvas><output role="status"></output>
+<div class="pad" id="move" aria-label="Drag to walk"><i></i><span>Move</span></div>
+<div class="pad" id="look" aria-label="Drag to orbit"><i></i><span>Look</span></div>
+</section>
+<footer><button data-action="jump">Jump</button><button data-action="fight">Fight</button><button data-action="slam">Slam</button><button data-action="dodge">Dodge</button><button data-action="spin">Spin</button><button id="run" aria-pressed="false">Run</button><button id="reset">Reset camera</button></footer>
+</main>
+<script src="scene.js"></script>
+</body></html>

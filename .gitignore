@@ -4,3 +4,4 @@
 *.keystore
 /macos/build/
 .DS_Store
+/macos/preview/node_modules/

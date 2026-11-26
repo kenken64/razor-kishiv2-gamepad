@@ -1,13 +1,17 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="net.kishi.bridge" android:versionCode="12" android:versionName="1.11">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="net.kishi.bridge" android:versionCode="18" android:versionName="1.17">
     <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="35"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     <application android:label="Kishi Wi-Fi" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <provider android:name=".HelperSetup" android:authorities="net.kishi.bridge.helper" android:exported="true" android:permission="android.permission.DUMP"/>
         <service android:name=".ReceiverService" android:exported="false" android:foregroundServiceType="connectedDevice"/>
         <activity android:name=".ReceiverActivity" android:windowSoftInputMode="stateAlwaysHidden" android:exported="false"/>
+        <activity android:name=".PairingScanActivity" android:screenOrientation="sensorLandscape" android:exported="false"/>
         <activity android:name=".Bridge" android:screenOrientation="sensorLandscape" android:windowSoftInputMode="adjustResize" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>

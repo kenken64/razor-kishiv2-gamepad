@@ -8,20 +8,25 @@ The phone and PC must be on the same local network. The PC can use Ethernet. Use
 
 Install Rust with Cargo and the Windows MSVC build tools. Install the [ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0) on the PC that will run the game.
 
-Build the receiver, then launch the Windows dashboard:
+Build the receiver:
 
 ```powershell
 cargo build --locked --release --manifest-path .\server\Cargo.toml
-.\server\Launch-Receiver.ps1
 ```
+
+Double-click **Launch-Receiver.vbs** in the **server** folder to start the receiver minimized on the taskbar with PowerShell hidden. Click its taskbar icon to open the dashboard.
 
 The WPF dashboard matches the macOS receiver: pairing code, Windows LAN address, connection status, live sticks, triggers, D-pad, buttons, activity log, and Gamepad/Monitor modes. It starts the receiver automatically and hides its console window.
 
 If PowerShell blocks the script, run it with `powershell -ExecutionPolicy Bypass -File .\server\Launch-Receiver.ps1`. Allow the receiver on your private network if Windows Firewall prompts. Keep the dashboard open while playing.
 
+Click **Monitor** or **Gamepad** in the Receiver panel to switch modes. Changing modes while running restarts the listener. Reconnect your phone with the new pairing code.
+
 Use **Monitor** mode to verify pairing and live input before ViGEmBus is installed; Gamepad mode publishes the Xbox 360 controller. The Rust command-line receiver is still available with `cargo run --locked --release --manifest-path .\server\Cargo.toml`.
 
 ### Windows character preview
+
+Use the eye icon in the dashboard header to hide or show the 3D model. The receiver remembers your choice.
 
 Open **Choose model** in the dashboard or click the character name in fullscreen. The receiver scans [server/assets](server/assets) each time you open the menu. You can try the controls before pairing by dragging the on-screen sticks and clicking the action buttons.
 
@@ -65,7 +70,9 @@ Find your active LAN IPv4 address with `ip -br -4 addr`. Enter it and the six-di
 
 The macOS app is a native SwiftUI receiver. It shows the Mac’s LAN address, the six-digit pairing code, connection status, live sticks, triggers, D-pad, buttons, and an activity log.
 
-Build it with Xcode Command Line Tools, then open it:
+The header’s eye icon switches between live input and the character preview. The preview displays the six bundled GLBs. The preview uses the same controller bindings as the Windows character preview, including RT for the 360° swing. It works in both Monitor and Gamepad modes. For extra models, copy compatible humanoid GLBs to `~/Library/Application Support/Kishi Receiver/Characters/` and reopen the model picker.
+
+Build it with Xcode Command Line Tools and Node.js 18 or newer with npm, then open it:
 
 ```sh
 ./macos/build.sh
@@ -87,7 +94,7 @@ open "macos/build/Kishi Receiver.app"
 
 To re-sign an existing build, use `sh macos/sign-macos.sh "macos/build/Kishi Receiver.app" "/path/to/profile.provisionprofile" "Apple Development: Your Name (TEAMID)"`. [Apple virtual HID entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.hid.virtual.device)
 
-**Monitor mode.** Without the entitlement the app starts in **Monitor** and still pairs and displays live input, but games receive nothing. Switch modes while the receiver is stopped. Run `hidutil list` to confirm that **Kishi Wi-Fi Gamepad** appears in gamepad mode, then test it in a HID-controller-compatible game.
+**Monitor mode.** Without the entitlement the app starts in **Monitor** and still pairs and displays live input, but games receive nothing. Changing modes while running restarts the listener and generates a new pairing code. Run `hidutil list` to confirm that **Kishi Wi-Fi Gamepad** appears in gamepad mode, then test it in a HID-controller-compatible game.
 
 The original Rust command-line receiver remains available in `server/`. It supports `--monitor` without signing, and `server/sign-macos.sh` can sign the CLI executable for gamepad mode.
 
@@ -99,11 +106,13 @@ The app runs on Android 6.0 (API 23) or newer. To build it on Windows, install a
 .\android\build.ps1
 ```
 
-The script defaults to `D:\Android\Sdk`. For another SDK location, pass its path with `-Sdk`. It compiles the app, signs it with a local debug key, and verifies the APK.
+The script defaults to `D:\Android\Sdk`. For another SDK location, pass its path with `-Sdk`. The first build downloads the checksum-verified ZXing scanner library from Maven Central. It compiles the app, signs it with a local debug key, and verifies the APK.
 
 Copy **`android\build\Kishi-WiFi.apk`** to the phone and tap it to install. If prompted, allow installation from the app opening the file. Keep `android\build\debug.jks` locally so future builds can update the installed app and preserve its profiles.
 
 ## Pair and test
+
+**Pair with a QR code.** On the Windows, macOS, or Android receiver, click the QR icon beside the six-digit code. On the sending phone, tap the QR icon beside **Pairing code**, allow camera access, and point it at the receiver screen. The app fills in the receiver address and pairing code. Tap **Connect** below the pairing fields to pair. You can also type both fields manually. After restarting the receiver or switching modes, scan its new code.
 
 ### Receive on a Google Pixel 7 Pro
 

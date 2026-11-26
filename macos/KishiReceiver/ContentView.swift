@@ -1,28 +1,40 @@
 import SwiftUI
+import CoreImage
 
 struct ContentView: View {
     @ObservedObject var model: ReceiverModel
+
+    @AppStorage("showCharacterPreview") private var showingCharacter = true
 
     var body: some View {
         ZStack {
             AppBackground()
 
             VStack(spacing: 18) {
-                HeaderView(model: model)
+                HeaderView(showingCharacter: $showingCharacter, model: model)
 
                 HStack(alignment: .top, spacing: 18) {
-                    VStack(spacing: 18) {
-                        PairingPanel(model: model)
-                        ReceiverPanel(model: model)
+                    PairingPanel(model: model)
+                        .frame(width: 360)
+                    Group {
+                        if showingCharacter {
+                            CharacterPreview(model: model, visible: true)
+                        } else {
+                            InputPanel(model: model)
+                        }
                     }
-                    .frame(width: 360)
-
-                    VStack(spacing: 18) {
-                        InputPanel(model: model)
-                        ActivityPanel(model: model)
-                    }
+                    .frame(minHeight: 308)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                     .frame(maxWidth: .infinity)
                 }
+
+                HStack(alignment: .top, spacing: 18) {
+                    ReceiverPanel(model: model)
+                        .frame(width: 360)
+                    ActivityPanel(model: model)
+                        .frame(maxWidth: .infinity)
+                }
+                .frame(maxHeight: .infinity, alignment: .top)
             }
             .padding(22)
         }
@@ -34,6 +46,7 @@ struct ContentView: View {
 // MARK: - Header
 
 private struct HeaderView: View {
+    @Binding var showingCharacter: Bool
     @ObservedObject var model: ReceiverModel
 
     private var statusColor: Color {
@@ -72,6 +85,15 @@ private struct HeaderView: View {
             Spacer(minLength: 12)
 
             StatusBadge(text: model.statusText, color: statusColor, pulsing: model.isRunning && !model.isConnected)
+
+            Button { showingCharacter.toggle() } label: {
+                Image(systemName: showingCharacter ? "eye" : "eye.slash")
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(Color.white.opacity(0.07)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(showingCharacter ? "Hide 3D model" : "Show 3D model")
+            .help(showingCharacter ? "Hide 3D model" : "Show 3D model")
 
             if model.isRunning {
                 Button(action: model.restart) {
@@ -132,8 +154,39 @@ private struct StatusBadge: View {
 
 // MARK: - Pairing
 
+private struct PairingQRView: View {
+    let payload: String
+    @State private var image: CGImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(decorative: image, scale: 1)
+                    .interpolation(.none)
+                    .resizable()
+                    .frame(width: CGFloat(image.width) * 8, height: CGFloat(image.height) * 8)
+                    .padding(32)
+                    .background(Color.white)
+                    .accessibilityLabel("Pairing QR code")
+            } else {
+                Text("Preparing pairing QR code…").padding()
+            }
+        }
+        .task(id: payload) {
+            let filter = CIFilter(name: "CIQRCodeGenerator", parameters: [
+                "inputMessage": Data(payload.utf8), "inputCorrectionLevel": "M"
+            ])
+            if let output = filter?.outputImage {
+                image = CIContext().createCGImage(output, from: output.extent)
+            }
+        }
+    }
+}
+
 private struct PairingPanel: View {
     @ObservedObject var model: ReceiverModel
+
+    @State private var showQR = false
 
     private var code: String { model.isRunning ? model.pin : "------" }
 
@@ -146,22 +199,34 @@ private struct PairingPanel: View {
                     .font(.system(size: 10.5, weight: .semibold))
                     .tracking(1.4)
                     .foregroundStyle(.tertiary)
-                Text(code)
-                    .font(.system(size: 52, weight: .semibold, design: .monospaced))
-                    .tracking(6)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.white, Color(hex: 0x9BE8DF)],
-                            startPoint: .leading,
-                            endPoint: .trailing
+                HStack(spacing: 10) {
+                    Text(code)
+                        .font(.system(size: 52, weight: .semibold, design: .monospaced))
+                        .tracking(6)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white, Color(hex: 0x9BE8DF)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-                    .textSelection(.enabled)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                        .textSelection(.enabled)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Button { showQR = true } label: {
+                        Image(systemName: "qrcode").font(.title2)
+                    }
+                    .accessibilityLabel("Show pairing QR code")
+                    .help("Show pairing QR code")
+                    .disabled(!model.isRunning || code.count != 6 || model.localAddress == "Unavailable")
+                    .popover(isPresented: $showQR) {
+                        PairingQRView(payload: "kishi://pair/\(model.localAddress)/\(code)")
+                    }
+                }
+                .onChange(of: code) { _ in showQR = false }
             }
 
-            Text("Enter this address and code in Kishi Wi-Fi on the phone, then tap Connect.")
+            Text("Tap the QR icon beside the pairing code on the phone, or enter the address and code. Then tap Connect.")
                 .font(.system(size: 12.5))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -224,62 +289,64 @@ private struct ReceiverPanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            PanelHeader(icon: "slider.horizontal.3", title: "Receiver")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                PanelHeader(icon: "slider.horizontal.3", title: "Receiver")
 
-            Picker(
-                "Mode",
-                selection: Binding(
-                    get: { model.selectedMode },
-                    set: { model.selectMode($0) }
-                )
-            ) {
-                ForEach(ReceiverMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
+                Picker(
+                    "Mode",
+                    selection: Binding(
+                        get: { model.selectedMode },
+                        set: { model.selectMode($0) }
+                    )
+                ) {
+                    ForEach(ReceiverMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
                 }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .controlSize(.large)
-            .font(.system(size: 13.5))
-            .disabled(model.isRunning)
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .controlSize(.large)
+                .font(.system(size: 13.5))
 
-            Text(model.selectedMode.detail)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: model.hasGamepad ? "checkmark.circle.fill" : "info.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(model.hasGamepad ? Color.green : Color.orange)
-                Text(gamepadStatusText)
+                Text(model.selectedMode.detail)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-            }
 
-            if let error = model.gamepadError {
-                VStack(alignment: .leading, spacing: 7) {
-                    Label("Virtual gamepad unavailable", systemImage: "exclamationmark.triangle.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.orange)
-                    Text(error)
-                        .font(.system(size: 11.5))
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: model.hasGamepad ? "checkmark.circle.fill" : "info.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(model.hasGamepad ? Color.green : Color.orange)
+                    Text(gamepadStatusText)
+                        .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(11)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.orange.opacity(0.07))
-                )
-            } else if model.selectedMode == .gamepad, !model.isRunning {
-                Text("The virtual gamepad is created when the receiver starts.")
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+
+                if let error = model.gamepadError {
+                    VStack(alignment: .leading, spacing: 7) {
+                        Label("Virtual gamepad unavailable", systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.orange)
+                        Text(error)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(11)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.orange.opacity(0.07))
+                    )
+                } else if model.selectedMode == .gamepad, !model.isRunning {
+                    Text("The virtual gamepad is created when the receiver starts.")
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(18)
         .panel()
@@ -328,7 +395,7 @@ private struct ActivityPanel: View {
                     }
                     .padding(11)
                 }
-                .frame(minHeight: 190, maxHeight: .infinity)
+                .frame(maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color.black.opacity(0.18))
@@ -348,7 +415,6 @@ private struct ActivityPanel: View {
         }
         .padding(18)
         .panel()
-        .frame(minHeight: 260)
     }
 
     private func color(for level: ReceiverLogLevel) -> Color {

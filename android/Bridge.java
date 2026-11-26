@@ -15,6 +15,8 @@ import java.util.concurrent.*;
 public class Bridge extends Activity implements InputManager.InputDeviceListener {
     EditText host, pin;
     Button connect;
+    ImageButton scan;
+    static final int SCAN_PAIRING = 14;
     TextView status;
     Session session;
     android.app.AlertDialog disconnectDialog;
@@ -49,19 +51,34 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,height<0?height:dp(height));
         p.topMargin=dp(margin); parent.addView(child,p);
     }
-    EditText field(LinearLayout parent,String name,String example,int type){
-        TextView caption=label(name,14,white,true); insert(parent,caption,14,-2);
+    EditText field(LinearLayout parent,String name,String example,int type,View action,boolean inlineLabel){
+        TextView caption=label(name,14,white,true);
+        if(!inlineLabel) insert(parent,caption,4,-2);
         EditText input=new EditText(this); input.setId(View.generateViewId()); caption.setLabelFor(input.getId());
         input.setSingleLine(); input.setInputType(type); input.setTextSize(17);
         int[] disabled = {-android.R.attr.state_enabled};
         input.setTextColor(new android.content.res.ColorStateList(
             new int[][]{disabled, new int[0]}, new int[]{soft, white}));
-        input.setHint(example); input.setHintTextColor(soft); input.setPadding(dp(14),0,dp(12),0);
+        input.setHint(example); input.setHintTextColor(soft); input.setPadding(dp(8),0,dp(6),0);
         android.graphics.drawable.StateListDrawable states=new android.graphics.drawable.StateListDrawable();
         states.addState(disabled,surface(card,12,0));
         states.addState(new int[]{android.R.attr.state_focused},surface(ink,12,lime));
         states.addState(new int[]{},surface(ink,12,0xff445654)); input.setBackground(states);
-        insert(parent,input,5,50); return input;
+        if(action==null && !inlineLabel) {
+            insert(parent,input,2,48);
+        } else {
+            LinearLayout row=new LinearLayout(this);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            if(inlineLabel) row.addView(caption,new LinearLayout.LayoutParams(dp(76),-2));
+            row.addView(input,new LinearLayout.LayoutParams(0,-1,1));
+            if(action!=null) {
+                LinearLayout.LayoutParams buttonParams=new LinearLayout.LayoutParams(dp(48),dp(48));
+                buttonParams.setMarginStart(dp(6));
+                row.addView(action,buttonParams);
+            }
+            insert(parent,row,2,48);
+        }
+        return input;
     }
     static final String PROFILE_PREFIX = "receiver.profile.";
 
@@ -135,41 +152,31 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         controllerName.setText(name);
     }
 
-    void revealFocusedField(ScrollView scroll){
+    void revealFocusedField(){
         View focused=getCurrentFocus();
-        if(focused==null) return;
-        Rect reveal=new Rect();
-        View field=android.view.ViewGroup.class.isInstance(focused.getParent()) ? (View)focused.getParent() : focused;
-        field.getDrawingRect(reveal);
-        scroll.offsetDescendantRectToMyCoords(field,reveal);
-        if(connect!=null){
-            Rect rect=new Rect();
-            connect.getDrawingRect(rect);
-            scroll.offsetDescendantRectToMyCoords(connect,rect);
-            reveal.union(rect);
-        }
-        int top=scroll.getPaddingTop()+dp(10);
-        int bottom=scroll.getHeight()-scroll.getPaddingBottom()-dp(10);
-        int target=reveal.height()>bottom-top ? reveal.top-top : reveal.bottom-bottom;
-        scroll.smoothScrollTo(0,Math.max(0,target));
+        if(focused!=host && focused!=pin) return;
+        Rect bounds=new Rect();
+        focused.getDrawingRect(bounds);
+        bounds.inset(0,-dp(4));
+        focused.requestRectangleOnScreen(bounds,false);
     }
 
     @android.annotation.TargetApi(30)
-    void configureEdgeToEdge(ScrollView scroll){
+    void configureEdgeToEdge(View screen){
         Window window=getWindow();
         window.setDecorFitsSystemWindows(false);
         window.setStatusBarColor(0x00000000); window.setNavigationBarColor(0x00000000);
         WindowInsetsController controller=window.getInsetsController();
         if(controller!=null) controller.setSystemBarsAppearance(0,
             WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
-        scroll.setOnApplyWindowInsetsListener((v,insets)->{
+        screen.setOnApplyWindowInsetsListener((v,insets)->{
             android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.displayCutout());
             android.graphics.Insets ime=insets.getInsets(WindowInsets.Type.ime());
             v.setPadding(bars.left,bars.top,bars.right,Math.max(bars.bottom,ime.bottom));
-            if(ime.bottom>0) v.postDelayed(()->revealFocusedField(scroll),250);
+            if(ime.bottom>0) v.postDelayed(this::revealFocusedField,250);
             return insets;
         });
-        scroll.requestApplyInsets();
+        screen.requestApplyInsets();
     }
 
     public void onCreate(Bundle b) {
@@ -177,11 +184,15 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         getWindow().setStatusBarColor(ink); getWindow().setNavigationBarColor(ink);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
             | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-        boolean wide=getResources().getConfiguration().screenWidthDp>=600;
-        ScrollView scroll=new ScrollView(this); scroll.setFillViewport(true); scroll.setBackgroundColor(ink);
-        LinearLayout root=column(); root.setPadding(dp(20),dp(14),dp(20),dp(20)); root.setFocusableInTouchMode(true); scroll.addView(root);
+        android.content.res.Configuration config=getResources().getConfiguration();
+        boolean wide=config.orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            && config.screenWidthDp>=480;
+        LinearLayout screen=column(); screen.setBackgroundColor(ink);
+        ScrollView scroll=new ScrollView(this); scroll.setFillViewport(true); scroll.setVerticalScrollBarEnabled(false); scroll.setBackgroundColor(ink);
+        screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        LinearLayout root=column(); root.setPadding(dp(12),dp(2),dp(12),dp(2)); root.setFocusableInTouchMode(true); scroll.addView(root);
         LinearLayout header=new LinearLayout(this); header.setGravity(Gravity.CENTER_VERTICAL); root.addView(header);
-        TextView title=label("Kishi Wi-Fi",32,white,true); title.setLetterSpacing(-0.045f);
+        TextView title=label("Kishi Wi-Fi",25,white,true); title.setLetterSpacing(-0.045f);
         header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
         Button receive=new Button(this,null,android.R.attr.borderlessButtonStyle);
         receive.setText("Receiver mode"); receive.setTextColor(lime); receive.setAllCaps(false);
@@ -196,45 +207,63 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         header.addView(receive);
         linkState=label("Offline",13,white,true); linkState.setBackground(surface(card,20,0xff445654));
         linkState.setPadding(dp(13),dp(5),dp(13),dp(5)); header.addView(linkState);
-        LinearLayout body=new LinearLayout(this); body.setOrientation(wide?0:1); insert(root,body,14,-2);
+        LinearLayout body=new LinearLayout(this); body.setOrientation(wide?0:1); insert(root,body,2,-2);
         LinearLayout monitor=column(); monitor.setBackground(surface(0xff203231,20,0xff39514c));
-        monitor.setPadding(dp(18),dp(14),dp(18),dp(12));
+        monitor.setPadding(dp(10),dp(6),dp(10),dp(6));
         monitor.addView(label("INPUT MONITOR",12,lime,true));
-        controllerName=label("",20,white,true); insert(monitor,controllerName,3,-2);
-        scope=new Scope(); insert(monitor,scope,6,wide?145:116);
+        controllerName=label("",17,white,true); insert(monitor,controllerName,3,-2);
+        scope=new Scope(); insert(monitor,scope,2,wide?Math.min(145,Math.max(64,config.screenHeightDp-196)):112);
         latency=label("Receiver RTT  ·  —",14,soft,true); insert(monitor,latency,2,-2);
-        LinearLayout form=column(); form.setPadding(dp(18),dp(16),dp(18),dp(16)); form.setBackground(surface(card,20,0xff344140));
+        LinearLayout form=column(); form.setPadding(dp(10),dp(4),dp(10),dp(6)); form.setBackground(surface(card,20,0xff344140));
         LinearLayout formHeader = new LinearLayout(this);
         formHeader.setGravity(Gravity.CENTER_VERTICAL);
-        formHeader.addView(label("Pair receiver",23,white,true),new LinearLayout.LayoutParams(0,-2,1));
+        formHeader.addView(label("Pair receiver",19,white,true),new LinearLayout.LayoutParams(0,-2,1));
         Button profiles = new Button(this,null,android.R.attr.borderlessButtonStyle);
         profiles.setText("Profiles"); profiles.setTextColor(lime); profiles.setAllCaps(false);
         profiles.setOnClickListener(v -> showProfiles());
-        formHeader.addView(profiles); form.addView(formHeader);
+        if(wide && config.screenHeightDp<320) header.addView(profiles,1);
+        else formHeader.addView(profiles);
+        form.addView(formHeader);
         LinearLayout addressColumn=form, codeColumn=form;
-        if(wide){
+        if(config.screenWidthDp>=620){
             LinearLayout fields=new LinearLayout(this);
             addressColumn=column(); codeColumn=column();
-            fields.addView(addressColumn,new LinearLayout.LayoutParams(0,-2,1.5f));
+            fields.addView(addressColumn,new LinearLayout.LayoutParams(0,-2,1));
             LinearLayout.LayoutParams codeParams=new LinearLayout.LayoutParams(0,-2,1);
             codeParams.leftMargin=dp(8); fields.addView(codeColumn,codeParams);
             form.addView(fields);
         }
-        host=field(addressColumn,"Receiver address","192.168.0.203",android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        boolean inlineLabels=wide && config.screenWidthDp<620;
+        host=field(addressColumn,"Receiver address","192.168.0.203",android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_URI,null,inlineLabels);
         host.setText(getPreferences(0).getString("host",""));
-        pin=field(codeColumn,"Pairing code","6 digits",android.text.InputType.TYPE_CLASS_NUMBER);
+        scan=new ImageButton(this,null,android.R.attr.borderlessButtonStyle);
+        scan.setImageResource(getResources().getIdentifier("ic_pair_qr","drawable",getPackageName()));
+        scan.setImageTintList(new android.content.res.ColorStateList(
+            new int[][]{{-android.R.attr.state_enabled},{}},new int[]{soft,lime}));
+        scan.setContentDescription("Scan pairing QR code");
+        if(Build.VERSION.SDK_INT>=26) scan.setTooltipText("Scan pairing QR code");
+        scan.setOnClickListener(v -> startActivityForResult(
+            new android.content.Intent(this,PairingScanActivity.class),SCAN_PAIRING));
+        pin=field(codeColumn,"Pairing code","6 digits",android.text.InputType.TYPE_CLASS_NUMBER,scan,inlineLabels);
         pin.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(6)});
-        connect=new Button(this); connect.setText("Connect"); connect.setAllCaps(false); connect.setTextColor(ink); connect.setTextSize(17);
+        connect=new Button(this);
+        connect.setAllCaps(false);
+        connect.setTextColor(ink);
+        connect.setTextSize(16);
+        connect.setPadding(dp(16),0,dp(16),0);
         connect.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x44000000),surface(lime,12,0),null));
-        insert(form,connect,16,50); status=label("Use the code shown on your receiver.",14,soft,false);
-        status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); insert(form,status,10,-2);
+        setConnectAction(false);
+        insert(form,connect,6,48);
+        status=label("Use the code shown on your receiver.",14,soft,false);
+        status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        insert(form,status,4,-2);
         if(wide){
-            body.addView(monitor,new LinearLayout.LayoutParams(0,-2,1));
-            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1); p.leftMargin=dp(14); body.addView(form,p);
-        }else{insert(body,monitor,0,-2);insert(body,form,12,-2);}
-        setContentView(scroll); refreshDevice();
-        if(Build.VERSION.SDK_INT>=30) configureEdgeToEdge(scroll);
-        View.OnFocusChangeListener reveal=(view,hasFocus)->{if(hasFocus) scroll.postDelayed(()->revealFocusedField(scroll),350);};
+            body.addView(monitor,new LinearLayout.LayoutParams(0,-2,0.82f));
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1); p.leftMargin=dp(8); body.addView(form,p);
+        }else{insert(body,form,0,-2);insert(body,monitor,12,-2);}
+        setContentView(screen); refreshDevice();
+        if(Build.VERSION.SDK_INT>=30) configureEdgeToEdge(screen);
+        View.OnFocusChangeListener reveal=(view,hasFocus)->{if(hasFocus) scroll.postDelayed(this::revealFocusedField,350);};
         host.setOnFocusChangeListener(reveal); pin.setOnFocusChangeListener(reveal);
         int noFullscreen=android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
             | android.view.inputmethod.EditorInfo.IME_FLAG_NO_FULLSCREEN;
@@ -250,10 +279,20 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
             if(ip.isEmpty() || !code.matches("[0-9]{6}")) { status.setText("Enter the receiver address and six-digit code."); return; }
             getPreferences(0).edit().putString("host",ip).apply();
             beginAttempt(ip,code);
-            ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(pin.getWindowToken(),0); linkState.setText("Pairing…"); status.setText("Contacting receiver…"); connect.setText("Disconnect");
+            ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(pin.getWindowToken(),0); linkState.setText("Pairing…"); status.setText("Contacting receiver…");
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         });
     }
+    @Override protected void onActivityResult(int request,int result,android.content.Intent data) {
+        super.onActivityResult(request,result,data);
+        if (request!=SCAN_PAIRING || result!=RESULT_OK || data==null || session!=null) return;
+        PairingQr pairing=PairingQr.parse(data.getStringExtra("pairing"));
+        if (pairing==null) return;
+        host.setText(pairing.address);
+        pin.setText(pairing.code);
+        status.setText("Receiver scanned. Tap Connect to pair.");
+    }
+
     class Scope extends View {
         final android.graphics.Paint paint=new android.graphics.Paint(1);
         Scope(){super(Bridge.this);setContentDescription("Live controller diagram");}
@@ -293,9 +332,17 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
             c.restore();
         }
     }
+    void setConnectAction(boolean disconnect){
+        String label=disconnect?"Disconnect":"Connect";
+        String icon=disconnect?"ic_disconnect":"ic_connect";
+        connect.setCompoundDrawablesRelativeWithIntrinsicBounds(getResources().getIdentifier(icon,"drawable",getPackageName()),0,0,0);
+        connect.setText(label);
+        connect.setContentDescription(label);
+        if(Build.VERSION.SDK_INT>=26) connect.setTooltipText(label);
+    }
     void beginAttempt(String address,String code){
         session = new Session(address,code);
-        host.setEnabled(false); pin.setEnabled(false); connect.setText("Disconnect");
+        host.setEnabled(false); pin.setEnabled(false); scan.setEnabled(false); setConnectAction(true);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         session.start();
     }
@@ -402,7 +449,7 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         if(old!=null) old.cancelAttempt();
         pairedThisRun=false; retrySeconds=1;
         device=-1; buttons=hat=lt=rt=0; lbTrigger=rbTrigger=false; lx=ly=rx=ry=0;
-        latency.setText("Receiver RTT  ·  —"); scope.invalidate(); host.setEnabled(true); pin.setEnabled(true); linkState.setText("Offline"); linkState.setTextColor(white); connect.setText("Connect"); status.setText(message);
+        latency.setText("Receiver RTT  ·  —"); scope.invalidate(); host.setEnabled(true); pin.setEnabled(true); scan.setEnabled(true); linkState.setText("Offline"); linkState.setTextColor(white); setConnectAction(false); status.setText(message);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     void emit(){

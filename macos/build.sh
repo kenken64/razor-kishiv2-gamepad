@@ -20,6 +20,14 @@ fi
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 
+npm --prefix "$here/preview" ci --no-audit --no-fund
+npm --prefix "$here/preview" run build
+resources="$app/Contents/Resources"
+mkdir -p "$resources/Preview" "$resources/Characters"
+cp "$here/preview/index.html" "$here/preview/style.css" "$build/preview/scene.js" "$resources/Preview/"
+cp "$here/preview/node_modules/three/LICENSE" "$resources/Preview/three-LICENSE.txt"
+cp "$here/../server/assets/"*.glb "$resources/Characters/"
+
 set -- "$here"/KishiReceiver/*.swift
 for arch in $archs; do
     out="$build/kishi-receiver-$arch"
@@ -31,6 +39,7 @@ for arch in $archs; do
         -target "$arch-apple-macosx13.0" \
         -sdk "$sdk" \
         -framework SwiftUI \
+        -framework WebKit \
         -framework AppKit \
         -framework Network \
         -framework IOKit \

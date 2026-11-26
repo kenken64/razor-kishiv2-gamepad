@@ -11,6 +11,30 @@ public class ReceiverActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private TextView state,details;
     private Button toggle;
+    private ImageButton qrButton;
+    private android.app.AlertDialog qrDialog;
+    private String qrPayload;
+
+    private void showQr() {
+        if (qrPayload==null) return;
+        try {
+            int side=Math.min(480,getResources().getDisplayMetrics().heightPixels / 2);
+            com.google.zxing.common.BitMatrix bits=new com.google.zxing.qrcode.QRCodeWriter().encode(
+                qrPayload,com.google.zxing.BarcodeFormat.QR_CODE,side,side);
+            int[] pixels=new int[side*side];
+            for (int y=0;y<side;y++) for (int x=0;x<side;x++)
+                pixels[y*side+x]=bits.get(x,y)?0xff000000:0xffffffff;
+            ImageView image=new ImageView(this);
+            image.setImageBitmap(android.graphics.Bitmap.createBitmap(pixels,side,side,android.graphics.Bitmap.Config.ARGB_8888));
+            image.setScaleType(ImageView.ScaleType.CENTER);
+            image.setMinimumHeight(side);
+            image.setContentDescription("Pairing QR code");
+            qrDialog=new android.app.AlertDialog.Builder(this).setView(image)
+                .setPositiveButton("Close",null).show();
+        } catch (com.google.zxing.WriterException e) {
+            Toast.makeText(this,"Enter the displayed address and code manually.",Toast.LENGTH_LONG).show();
+        }
+    }
     private String addresses;
     private String addresses() {
         ArrayList<String> list=new ArrayList<>();
@@ -31,6 +55,11 @@ public class ReceiverActivity extends Activity {
             details.setText(service!=null && !service.pairingCode.isEmpty()
                 ? "Receiver address   "+addresses+"\nPairing code   "+service.pairingCode
                 : "Use Enable-PixelReceiver.ps1 over USB to enable the gamepad helper after each restart.");
+            String payload=service==null?null:"kishi://pair/"+addresses.split("  /  ",2)[0]+"/"+service.pairingCode;
+            if (PairingQr.parse(payload)==null) payload=null;
+            if (!java.util.Objects.equals(payload,qrPayload) && qrDialog!=null) qrDialog.dismiss();
+            qrPayload=payload;
+            qrButton.setVisibility(payload==null?android.view.View.GONE:android.view.View.VISIBLE);
             handler.postDelayed(this,500);
         }
     };
@@ -45,7 +74,15 @@ public class ReceiverActivity extends Activity {
         root.setPadding(pad,pad,pad,pad); scroll.addView(root);
         TextView title=new TextView(this); title.setText("Gamepad receiver"); title.setTextSize(28); root.addView(title);
         state=new TextView(this); state.setTextSize(18); root.addView(state);
-        details=new TextView(this); details.setTextSize(20); details.setPadding(0,pad,0,pad); root.addView(details);
+        details=new TextView(this); details.setTextSize(20); details.setPadding(0,pad,0,pad); LinearLayout pairing=new LinearLayout(this);
+        pairing.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        pairing.addView(details);
+        qrButton=new ImageButton(this);
+        qrButton.setContentDescription("Show pairing QR code");
+        qrButton.setImageResource(getResources().getIdentifier("ic_pair_qr","drawable",getPackageName()));
+        qrButton.setOnClickListener(v -> showQr());
+        pairing.addView(qrButton);
+        root.addView(pairing);
         toggle=new Button(this); toggle.setOnClickListener(v -> {
             Intent intent=new Intent(this,ReceiverService.class);
             if (ReceiverService.active!=null) {
