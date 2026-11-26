@@ -144,12 +144,20 @@ fn main() -> Result<()> {
     println!("{} [LISTENING] TCP 26760. Pairing code {pin}", timestamp());
     for socket in listener.incoming() {
         let mut previous = None;
+        let mut ui_buttons = 0;
+        let mut ui_spin_held = false;
         let mut last_ui = Instant::now() - Duration::from_secs(1);
         let socket = socket?;
         let peer = socket.peer_addr()?;
         let mut paired = false;
         let result = receive(socket, &pin, &mut paired, |state| {
-            if ui && last_ui.elapsed() >= Duration::from_millis(50) {
+            let spin_held =
+                state.right_trigger >= 140 || (ui_spin_held && state.right_trigger > 80);
+            if ui
+                && (state.buttons != ui_buttons
+                    || spin_held != ui_spin_held
+                    || last_ui.elapsed() >= Duration::from_millis(50))
+            {
                 println!(
                     "[STATE] {} {} {} {} {} {} {}",
                     state.buttons,
@@ -161,6 +169,8 @@ fn main() -> Result<()> {
                     state.thumb_ry
                 );
                 last_ui = Instant::now();
+                ui_buttons = state.buttons;
+                ui_spin_held = spin_held;
             }
             if let Some(pad) = &mut target {
                 pad.update(&state)?;

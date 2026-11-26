@@ -190,7 +190,7 @@
             </Ellipse.Fill>
         </Ellipse>
 
-        <Grid Margin="22">
+        <Grid x:Name="Dashboard" Margin="22">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -246,7 +246,7 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
                     <Border Style="{StaticResource Card}" Margin="0,0,0,18">
                         <StackPanel>
@@ -290,6 +290,67 @@
                                 <TextBlock x:Name="PairingStatus" Text="Receiver is not listening" FontSize="12"
                                            Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap"/>
                             </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,18">
+                        <StackPanel>
+                            <DockPanel>
+                                <Button x:Name="EnterFullscreen" DockPanel.Dock="Right" Content="Fullscreen"
+                                        Style="{StaticResource SecondaryButton}" ToolTip="Fullscreen (F11)"/>
+                                <TextBlock x:Name="CharacterName" Text="Character" Style="{StaticResource PanelTitle}"
+                                           VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,0"/>
+                            </DockPanel>
+                            <Button x:Name="ChooseModel" Content="Choose model ▾" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Left" Margin="0,6,0,0"/>
+                            <Border x:Name="PreviewHost" Height="206" Margin="0,6">
+                            <Viewport3D x:Name="WukongPreview" ClipToBounds="True">
+                                <Viewport3D.Camera>
+                                    <PerspectiveCamera x:Name="WukongCamera" Position="0,4,8" LookDirection="0,-2,-8" UpDirection="0,1,0" FieldOfView="49"/>
+                                </Viewport3D.Camera>
+                                <ModelVisual3D>
+                                    <ModelVisual3D.Content>
+                                        <Model3DGroup>
+                                            <AmbientLight Color="#999999"/>
+                                            <DirectionalLight Color="#FFF2D6" Direction="-1,-1,-2"/>
+                                        </Model3DGroup>
+                                    </ModelVisual3D.Content>
+                                </ModelVisual3D>
+                                <ModelVisual3D x:Name="WukongFloor"/>
+                                <ModelVisual3D x:Name="WukongImpact"/>
+                                <ModelVisual3D x:Name="SpinTrail"/>
+                                <ModelVisual3D x:Name="Wukong">
+                                    <ModelVisual3D.Transform>
+                                        <Transform3DGroup>
+                                            <RotateTransform3D CenterY="1.65">
+                                                <RotateTransform3D.Rotation>
+                                                    <AxisAngleRotation3D x:Name="WukongFlip" Axis="1,0,0"/>
+                                                </RotateTransform3D.Rotation>
+                                            </RotateTransform3D>
+                                            <RotateTransform3D>
+                                                <RotateTransform3D.Rotation>
+                                                    <AxisAngleRotation3D x:Name="WukongYaw" Axis="0,1,0"/>
+                                                </RotateTransform3D.Rotation>
+                                            </RotateTransform3D>
+                                            <TranslateTransform3D x:Name="WukongMove"/>
+                                        </Transform3DGroup>
+                                    </ModelVisual3D.Transform>
+                                </ModelVisual3D>
+                            </Viewport3D>
+                            </Border>
+                            <UniformGrid Columns="2">
+                                <Button x:Name="JumpButton" Content="A · Jump" Style="{StaticResource SecondaryButton}"/>
+                                <Button x:Name="FightButton" Content="X · Fight" Style="{StaticResource SecondaryButton}"/>
+                                <Button x:Name="SlamButton" Content="Y · Slam" ToolTip="Draw staff and slam (I)" Style="{StaticResource SecondaryButton}"/>
+                                <Button x:Name="DodgeButton" Content="B · Dodge" Style="{StaticResource SecondaryButton}"/>
+                                <Button x:Name="SpinButton" Content="RT · Spin" ToolTip="360° swing (U)" Style="{StaticResource SecondaryButton}"/>
+                                <CheckBox x:Name="RunToggle" Content="RB · Run" VerticalAlignment="Center"
+                                          HorizontalAlignment="Center" Foreground="{StaticResource TextPrimary}"/>
+                            </UniformGrid>
+                            <TextBlock x:Name="WukongHint" Text="Left stick to walk · Right stick to orbit"
+                                       Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,6,0,0"/>
+                            <Button x:Name="ResetCamera" Content="Reset camera" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Left" Margin="0,6,0,0"/>
                         </StackPanel>
                     </Border>
 
@@ -367,7 +428,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel>
-                                    <Canvas Width="112" Height="112">
+                                    <Canvas x:Name="LeftStick" Tag="Left" Background="Transparent" Cursor="Hand" Width="112" Height="112">
                                         <Ellipse Width="112" Height="112" Fill="#08FFFFFF" Stroke="#1FFFFFFF" StrokeThickness="1"/>
                                         <Line X1="56" Y1="10" X2="56" Y2="102" Stroke="#12FFFFFF" StrokeThickness="1"/>
                                         <Line X1="10" Y1="56" X2="102" Y2="56" Stroke="#12FFFFFF" StrokeThickness="1"/>
@@ -433,7 +494,7 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="2">
-                                    <Canvas Width="112" Height="112">
+                                    <Canvas x:Name="RightStick" Tag="Right" Background="Transparent" Cursor="Hand" Width="112" Height="112">
                                         <Ellipse Width="112" Height="112" Fill="#08FFFFFF" Stroke="#1FFFFFFF" StrokeThickness="1"/>
                                         <Line X1="56" Y1="10" X2="56" Y2="102" Stroke="#12FFFFFF" StrokeThickness="1"/>
                                         <Line X1="10" Y1="56" X2="102" Y2="56" Stroke="#12FFFFFF" StrokeThickness="1"/>
@@ -484,6 +545,13 @@
                     </Border>
                 </Grid>
             </Grid>
+        </Grid>
+        <Grid x:Name="FullscreenOverlay" Background="#090D17" Visibility="Collapsed">
+            <Border x:Name="FullscreenHost"/>
+            <Button x:Name="FullscreenChooseModel" Content="Choose model ▾" Style="{StaticResource SecondaryButton}"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18"/>
+            <Button x:Name="ExitFullscreen" Content="Exit fullscreen (Esc)" Style="{StaticResource SecondaryButton}"
+                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="18"/>
         </Grid>
     </Grid>
 </Window>

@@ -21,6 +21,34 @@ If PowerShell blocks the script, run it with `powershell -ExecutionPolicy Bypass
 
 Use **Monitor** mode to verify pairing and live input before ViGEmBus is installed; Gamepad mode publishes the Xbox 360 controller. The Rust command-line receiver is still available with `cargo run --locked --release --manifest-path .\server\Cargo.toml`.
 
+### Windows character preview
+
+Open **Choose model** in the dashboard or click the character name in fullscreen. The receiver scans [server/assets](server/assets) each time you open the menu. You can try the controls before pairing by dragging the on-screen sticks and clicking the action buttons.
+
+| Character | Weapon and attack |
+| --- | --- |
+| Sun Wukong (孙悟空) | Extends his staff through a sweeping swing. |
+| Zhu Bajie (猪八戒) | Sweeps with his nine-tooth rake. |
+| Bull Demon King (牛魔王) | Brings his poleaxe down into a two-handed forward push. |
+| Sha Seng (沙僧) | Pushes his crescent halberd forward with both hands. |
+| Tang Seng (唐僧) | Leads his two-handed push with the ringed head of his pilgrim staff. |
+| Princess Iron Fan (铁扇公主) | Enlarges her fan during the attack and returns it to its original size on recovery. |
+
+| Action | Controller | Dashboard or keyboard |
+| --- | --- | --- |
+| Walk / run | Left stick / hold **RB** while moving | Drag the left stick / toggle **Run** |
+| Orbit and tilt the camera | Right stick | Drag the right stick. **Reset camera** restores the default view. |
+| Jump with a forward somersault | **A** | **Jump** or **J** |
+| Attack | **X** | **Fight** or **K**. Tap again during a swing to chain a follow-up, or attack during a jump. |
+| Slam with a ground shockwave | **Y** | **Slam** or **I** |
+| Dodge | **B** | **Dodge** or **L**. Use the left stick to choose a direction, or center it to backstep. |
+| 360° weapon swing | Squeeze **RT / R2** while grounded | **Spin** or **U**. Release and squeeze the trigger again to repeat. |
+| Fullscreen | | **Fullscreen** or **F11** to enter. **Esc** or **F11** to return. |
+
+**Add a character.** Place a compatible `.glb` in `server/assets` and reopen the menu. The loader maps common humanoid joint names, including Mixamo-style names, and detects rigid equipment beneath either hand. An unarmed humanoid receives a preview staff.
+
+Use a bundled GLB as the export reference. The loader expects one humanoid skin with translation-only bind joints, indexed triangles in bind space, tightly packed float positions, normals and weights, four byte joint indices per vertex, and 16-bit triangle indices.
+
 ## Start the Linux receiver
 
 The receiver needs read/write access to `/dev/uinput`. If the device is missing, load the kernel module with `sudo modprobe uinput`. On a system with ACL tools, grant your account access to the current device node with `sudo setfacl -m "u:$(id -un):rw" /dev/uinput`. [Linux uinput documentation](https://docs.kernel.org/input/uinput.html)
