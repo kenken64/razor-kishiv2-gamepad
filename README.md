@@ -74,7 +74,7 @@ Find your active LAN IPv4 address with `ip -br -4 addr`. Enter it and the six-di
 
 The macOS app is a native SwiftUI receiver. It shows the Mac’s LAN address, the six-digit pairing code, connection status, live sticks, triggers, D-pad, buttons, and an activity log.
 
-The header’s eye icon switches between live input and the character preview. The preview displays the six bundled GLBs. The preview uses the same controller bindings as the Windows character preview, including RT for the 360° swing. It works in both Monitor and Gamepad modes. For extra models, copy compatible humanoid GLBs to `~/Library/Application Support/Kishi Receiver/Characters/` and reopen the model picker.
+The header’s eye icon shows or hides the character preview, which sits beside the live input monitor. The preview displays the six bundled GLBs. The preview uses the same controller bindings as the Windows character preview, including RT for the 360° swing. It works in both Monitor and Gamepad modes. For extra models, copy compatible humanoid GLBs to `~/Library/Application Support/Kishi Receiver/Characters/` and reopen the model picker.
 
 Build it with Xcode Command Line Tools and Node.js 18 or newer with npm, then open it:
 

@@ -27,7 +27,7 @@ Run the protocol and HID-report tests:
 
 ## Character preview
 
-The character preview opens on Sun Wukong. Choose a character by its English or Chinese name. The preview runs locally and responds to incoming reports in both receiver modes. Use the eye icon in the header to hide the model and show the live input monitor. Click it again to restore the model. The app remembers your choice.
+The character preview opens on Sun Wukong. Choose a character by its English or Chinese name. The preview runs locally and responds to incoming reports in both receiver modes. Use the eye icon in the header to hide or restore the model; the live input monitor stays visible beside it. The app remembers your choice.
 
 | Action | Controller | Preview |
 | --- | --- | --- |

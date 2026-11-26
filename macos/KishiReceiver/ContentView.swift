@@ -14,27 +14,36 @@ struct ContentView: View {
                 HeaderView(showingCharacter: $showingCharacter, model: model)
 
                 HStack(alignment: .top, spacing: 18) {
-                    PairingPanel(model: model)
-                        .frame(width: 360)
-                    Group {
-                        if showingCharacter {
-                            CharacterPreview(model: model, visible: true)
-                        } else {
-                            InputPanel(model: model)
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 18) {
+                            PairingPanel(model: model)
+                            if showingCharacter {
+                                CharacterPreview(model: model, visible: true)
+                                    .frame(height: 360)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                    )
+                            }
                         }
                     }
-                    .frame(minHeight: 308)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .frame(maxWidth: .infinity)
-                }
+                    .frame(width: 360)
+                    .frame(maxHeight: .infinity, alignment: .top)
 
-                HStack(alignment: .top, spacing: 18) {
-                    ReceiverPanel(model: model)
-                        .frame(width: 360)
-                    ActivityPanel(model: model)
-                        .frame(maxWidth: .infinity)
+                    VStack(spacing: 18) {
+                        InputPanel(model: model)
+
+                        HStack(alignment: .top, spacing: 18) {
+                            ReceiverPanel(model: model)
+                                .frame(width: 300)
+                            ActivityPanel(model: model)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .frame(maxHeight: .infinity, alignment: .top)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-                .frame(maxHeight: .infinity, alignment: .top)
             }
             .padding(22)
         }
