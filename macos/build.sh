@@ -12,6 +12,11 @@ here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 build="$here/build"
 app="$build/Kishi Receiver.app"
 sdk=$(xcrun --show-sdk-path)
+swiftui_macros="$(xcode-select -p)/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins/libSwiftUIMacros.dylib"
+plugin_args=""
+if [ -f "$swiftui_macros" ]; then
+    plugin_args="-load-plugin-library $swiftui_macros"
+fi
 archs=${ARCHS:-$(uname -m)}
 if [ "$archs" = "universal" ]; then
     archs="arm64 x86_64"
@@ -43,6 +48,7 @@ for arch in $archs; do
         -framework AppKit \
         -framework Network \
         -framework IOKit \
+        $plugin_args \
         -o "$out" \
         "$@"
 done
