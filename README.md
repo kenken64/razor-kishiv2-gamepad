@@ -6,6 +6,10 @@ The phone and PC must be on the same local network. The PC can use Ethernet. Use
 
 ## Start the Windows receiver
 
+![Windows receiver dashboard showing Sun Wukong, pairing controls, live controller input, and receiver activity](docs/images/windows-receiver.png)
+
+*Example session with sample pairing details and controller input.*
+
 Install Rust with Cargo and the Windows MSVC build tools. Install the [ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0) on the PC that will run the game.
 
 Build the receiver:
