@@ -102,6 +102,8 @@ export class CharacterRig {
             if (!bone(k)) throw new Error("Missing humanoid joint: "+k);
         }
         this.hipHeight=Math.max(.2,position(bone("hips")).y);
+        const headHeight=bone("head") ? position(bone("head")).y : 0;
+        this.displayScale=headHeight>0.0001 ? 2.56/headHeight : 1.42/this.hipHeight;
         this.push=/Bull Demon King|Sha Seng|Tang Seng/i.test(name);
         this.weapon=equipment(scene,[bone("hand.r"),bone("hand.l")],this.push);
         this.side=this.weapon.joint.parent===bone("hand.l")?"l":"r";

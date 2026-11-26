@@ -360,6 +360,7 @@ function Read-CharacterRig([string]$path) {
         }
         if ($nodeToBone.Count -eq $previous) { throw 'The skeleton contains an invalid joint hierarchy.' }
     }
+    $rig.NormalizeBindHeight()
     foreach ($mesh in $model.meshes) {
         foreach ($part in $mesh.primitives) {
             $position = $model.accessors[$part.attributes.POSITION]

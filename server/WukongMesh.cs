@@ -43,6 +43,20 @@ public sealed class WukongRig
         bones.Add(new Bone {Name=name, Parent=parent, Pivot=pivot});
     }
 
+    double bindScale = 1;
+
+    // Use the head joint above the bind floor, independent of headwear or weapons.
+    public void NormalizeBindHeight() {
+        Bone head = bones.Find(b => b.Name == "Head");
+        Bone hips = bones.Find(b => b.Name == "Hips");
+        if (head != null && head.Pivot.Y > 0.0001) bindScale = 2.56 / head.Pivot.Y;
+        else if (hips != null && hips.Pivot.Y > 0.0001) bindScale = 1.42 / hips.Pivot.Y;
+        foreach (Bone bone in bones) {
+            Point3D p = bone.Pivot;
+            bone.Pivot = new Point3D(p.X * bindScale, p.Y * bindScale, p.Z * bindScale);
+        }
+    }
+
     public void AddMesh(byte[] data, int positions, int normals, int vertices, int indices,
         int indexCount, int joints, int weights, int[] jointMap, float red, float green, float blue) {
         var mesh = new MeshGeometry3D();
@@ -61,8 +75,8 @@ public sealed class WukongRig
         bool rigid = true;
         for (int i=0; i<vertices; i++) {
             int p=positions+12*i, n=normals+12*i;
-            mesh.Positions.Add(blend.Points[i]=new Point3D(BitConverter.ToSingle(data,p),
-                BitConverter.ToSingle(data,p+4),BitConverter.ToSingle(data,p+8)));
+            mesh.Positions.Add(blend.Points[i]=new Point3D(bindScale * BitConverter.ToSingle(data,p),
+                bindScale * BitConverter.ToSingle(data,p+4), bindScale * BitConverter.ToSingle(data,p+8)));
             mesh.Normals.Add(blend.Normals[i]=new Vector3D(BitConverter.ToSingle(data,n),
                 BitConverter.ToSingle(data,n+4),BitConverter.ToSingle(data,n+8)));
             rigid &= blend.Joints[4*i]==rigidJoint && blend.Weights[4*i]==1;

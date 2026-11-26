@@ -109,9 +109,8 @@ async function loaded(name,bytes){
         const replacement=new CharacterRig(parsed,nameOf(name));
         if(rig){pivot.remove(rig.root);dispose(rig.root);}
         rig=replacement;
-        const scale=1.45/rig.hipHeight;
-        parsed.scale.multiplyScalar(scale);
-        parsed.position.y-=1.45;
+        parsed.scale.multiplyScalar(rig.displayScale);
+        parsed.position.y-=rig.hipHeight*rig.displayScale;
         pivot.add(parsed);
         action="";time=0;jump=.78;dodge=.36;queued=false;impactAge=1;stride=0;
         status.textContent="";
@@ -171,7 +170,7 @@ function draw(dt){
     stride+=clamp(speed-stride,-dt*9,dt*9);phase+=dt*(run?12:8)*stride;
     const t=clamp(time/duration,0,1), air=jump/.78, lift=4*air*(1-air);
     actor.rotation.y=yaw+(action==="spin"?2*Math.PI*ease(.16,.84,t):0);
-    pivot.position.y=1.45+lift*1.55+.07*Math.abs(Math.cos(phase))*stride;
+    pivot.position.y=(rig ? rig.hipHeight*rig.displayScale : 0)+lift*1.55+.07*Math.abs(Math.cos(phase))*stride;
     pivot.rotation.x=air===1?0:2*Math.PI*ease(.06,.92,air);
     if(rig){
         rig.pose({phase,stride,run,tuck:lift,dodge:Math.sin(Math.PI*dodge/.36),kind:action,t});
