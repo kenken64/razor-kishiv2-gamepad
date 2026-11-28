@@ -93,7 +93,7 @@ public class ReceiverActivity extends Activity {
             }
         });
         root.addView(toggle);
-        TextView hint=new TextView(this); hint.setText("Pair from the Kishi phone, then open a controller-compatible game on this device."); root.addView(hint);
+        TextView hint=new TextView(this); hint.setText("Open PadRelay on the phone with the controller and pair it with this device. Then open a controller-compatible game on this device."); root.addView(hint);
         setContentView(scroll);
     }
     protected void onResume(){ super.onResume(); addresses=addresses(); refresh.run(); }
