@@ -2,7 +2,7 @@
 
 *Your controller. Across devices.*
 
-PadRelay turns a Razer Kishi V2 attached to an Android phone into a wireless gamepad for Windows, Linux, macOS, or a second Android device. The phone reads the Kishi over USB-C and sends buttons, sticks, and triggers over Wi-Fi. The Rust desktop receiver creates an Xbox 360 controller on Windows and a virtual gamepad on Linux. Native GTK, SwiftUI, and WPF receivers provide the Linux, macOS, and Windows apps.
+PadRelay turns an Android Snap Gamepad attached to an Android phone into a wireless gamepad for Windows, Linux, macOS, or a second Android device. The phone reads the gamepad over USB-C and sends buttons, sticks, and triggers over Wi-Fi. The Rust desktop receiver creates an Xbox 360 controller on Windows and a virtual gamepad on Linux. Native GTK, SwiftUI, and WPF receivers provide the Linux, macOS, and Windows apps.
 
 **Get started:** [Linux](#start-the-linux-receiver) · [Windows](#start-the-windows-receiver) · [macOS](#start-the-macos-receiver) · [Android](#build-and-install-the-android-app)
 
