@@ -6,13 +6,13 @@ PadRelay turns a Razer Kishi V2 attached to an Android phone into a wireless gam
 
 **Get started:** [Linux](#start-the-linux-receiver) · [Windows](#start-the-windows-receiver) · [macOS](#start-the-macos-receiver) · [Android](#build-and-install-the-android-app)
 
+![PadRelay on Linux showing pairing controls, Sun Wukong, live controller input, and receiver activity](docs/images/linux-receiver.png)
+
+*PadRelay’s Linux receiver. Example session with sample pairing details and simulated controller input.*
+
 The phone and PC must be on the same local network. The PC can use Ethernet. Use a trusted LAN because the pairing code and controller reports travel over unencrypted TCP.
 
 ## Start the Windows receiver
-
-![Windows receiver dashboard showing Sun Wukong, pairing controls, live controller input, and receiver activity](docs/images/windows-receiver.png)
-
-*Example session with sample pairing details and controller input, shown with the previous app name.*
 
 Install Rust with Cargo and the Windows MSVC build tools. Install the [ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0) on the PC that will run the game.
 
@@ -63,10 +63,6 @@ Open **Choose model** in the dashboard or click the character name in fullscreen
 Use a bundled GLB as the export reference. The loader expects one humanoid skin with translation-only bind joints, indexed triangles in bind space, tightly packed float positions, normals and weights, four byte joint indices per vertex, and 16-bit triangle indices.
 
 ## Start the Linux receiver
-
-![PadRelay on Linux showing pairing controls, Sun Wukong, live controller input, and receiver activity](docs/images/linux-receiver.png)
-
-*Example session with sample pairing details and simulated controller input.*
 
 The Linux desktop app includes pairing codes and QR pairing, a LAN address picker, live sticks, triggers and buttons, an activity log, Gamepad/Monitor modes, and the same six animated characters as the macOS preview.
 
