@@ -32,6 +32,19 @@ Click **Monitor** or **Gamepad** in the Receiver panel to switch modes. Changing
 
 Use **Monitor** mode to verify pairing and live input before ViGEmBus is installed; Gamepad mode publishes the Xbox 360 controller. The Rust command-line receiver is still available with `cargo run --locked --release --manifest-path .\server\Cargo.toml`.
 
+### Two-player games on Windows
+
+Extract the entire Windows receiver ZIP, install ViGEmBus, and double-click **Launch-Receiver.vbs**. Open PadRelay from the taskbar and choose **Gamepad**. The ZIP includes the executable, dashboard and character assets.
+
+1. Connect each Android phone to its own physical gamepad. Put both phones on the same local network as the PC.
+2. On each phone, scan the same receiver QR code or enter the same PC address and six-digit code, then tap **Connect**. The dashboard shows **2/2 connected**. Choose **P1** or **P2** under **Live input** to inspect either phone.
+3. Open a PC game with local multiplayer support and follow its player-join prompt. Each phone drives a separate virtual Xbox 360 controller. Games assign their own player numbers.
+4. To verify independently of a game, open `joy.cpl` and inspect each controller's properties while moving the corresponding phone's sticks. Disconnecting one phone releases its controls while the other keeps playing. An available slot accepts another phone using the current pairing code.
+
+With two active players, additional phones must wait for a free slot and retry. The existing Android sender works with this release. Windows **Monitor** mode can display two input streams without publishing virtual devices.
+
+For an automated OS-level check, stop the receiver and run `python server/test_windows_two_player.py <path-to-receiver.exe>` on a Windows PC with ViGEmBus and two free XInput slots.
+
 ### Windows character preview
 
 Use the eye icon in the dashboard header to hide or show the 3D model. The receiver remembers your choice.

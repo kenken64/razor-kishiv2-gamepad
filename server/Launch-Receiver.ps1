@@ -65,7 +65,7 @@ $names = @(
     'GamepadWarning','GamepadWarningText','PeerText',
     'LeftStick','RightStick','LeftDot','LeftValues','RightDot','RightValues','LTFill','RTFill',
     'LTPercent','RTPercent','LTTrack','RTTrack',
-    'DpadUp','DpadLeft','DpadDown','DpadRight','LiveDot','LiveText',
+    'DpadUp','DpadLeft','DpadDown','DpadRight','LiveDot','LiveText','Player1','Player2',
     'ActivityBox','ClearButton','ButtonGrid',
     'ModelVisibility','ModelEyeSlash','CharacterCard','Dashboard','PreviewHost','WukongPreview','FullscreenOverlay','FullscreenHost','EnterFullscreen','ExitFullscreen',
     'CharacterName','ChooseModel','FullscreenChooseModel','Wukong','WukongCamera','WukongFloor','WukongImpact','SpinTrail','SpinButton','SlamButton','JumpButton','FightButton','DodgeButton','RunToggle','ResetCamera','WukongYaw','WukongFlip','WukongMove','WukongHint'
@@ -98,7 +98,8 @@ $script:receiver = $null
 $script:mode = 'gamepad'
 $script:pin = $null
 $script:address = 'Unavailable'
-$script:peer = ''
+$script:players = @{}
+$script:selectedPlayer = 'P1'
 $script:logPath = $null
 $script:errPath = $null
 $script:logState = @{ Position = [long]0; Residual = '' }
@@ -111,6 +112,8 @@ $script:chipDefs = [ordered]@{
 }
 
 function Get-ReceiverExe {
+    $bundled = Join-Path $PSScriptRoot 'padrelay-receiver.exe'
+    if (Test-Path -LiteralPath $bundled) { return $bundled }
     # Cargo can place builds outside the checkout through its environment or config.
     if (Get-Command cargo -ErrorAction SilentlyContinue) {
         $manifest = Join-Path $PSScriptRoot 'Cargo.toml'
@@ -600,7 +603,7 @@ function Update-GamepadStatus {
         $script:ui.GamepadStatus.Text = 'Input is visible here but games receive nothing.'
     } elseif ($script:running) {
         $script:ui.GamepadStatusIcon.Foreground = New-Brush '#74E0C8'
-        $script:ui.GamepadStatus.Text = 'Xbox 360 controller is published to Windows.'
+        $script:ui.GamepadStatus.Text = 'Each paired phone controls its own Xbox 360 gamepad.'
     } else {
         $script:ui.GamepadStatusIcon.Foreground = New-Brush '#F5C56B'
         $script:ui.GamepadStatus.Text = 'The virtual controller is created when the receiver starts.'
@@ -690,13 +693,38 @@ function Set-PairingQr([string]$matrix) {
     $script:ui.QrButton.IsEnabled = $true
 }
 
+function Update-Players([bool]$refreshInput = $true) {
+    $count = $script:players.Count
+    $details = foreach ($slot in 'P1','P2') {
+        $entry = $script:players[$slot]
+        if ($entry) { "$slot $($entry.Peer)" }
+    }
+    $script:ui.PeerText.Text = if ($count) { $details -join '   |   ' } else { 'No phone connected' }
+    Set-Status "$count/2 connected" $(if ($count) { '#74E0C8' } else { '#38BDF8' })
+    Set-PairingStatus $(if ($count -eq 2) { 'Both players connected' } else { 'Scan to join with a phone' }) '#74E0C8'
+    $entry = $script:players[$script:selectedPlayer]
+    if ($refreshInput) { Reset-Input }
+    if ($entry) {
+        if ($refreshInput) {
+            $values = $entry.Values
+            Set-Input @values
+        }
+        if ($entry.Stalled) { Set-Live "$script:selectedPlayer idle" '#F5C56B' }
+        else { Set-Live "$script:selectedPlayer live" '#74E0C8' }
+    } else { Set-Live "$script:selectedPlayer offline" '#66706F' }
+}
+
+$script:ui.Player1.Add_Click({ if ($script:running) { $script:selectedPlayer = 'P1'; Update-Players } })
+$script:ui.Player2.Add_Click({ if ($script:running) { $script:selectedPlayer = 'P2'; Update-Players } })
+
 function Handle-ReceiverLine([string]$line) {
     if ($line.StartsWith('[PAIR-QR] ')) { Set-PairingQr $line.Substring(10); return }
-    if ($line.StartsWith('[STATE] ')) {
-        $values = $line.Substring(8).Trim() -split '\s+'
-        if ($values.Count -eq 7) {
-            Set-Input ([int]$values[0]) ([int]$values[1]) ([int]$values[2]) `
-                ([int]$values[3]) ([int]$values[4]) ([int]$values[5]) ([int]$values[6])
+    if ($line -match '^\[STATE\] (P[12]) (.*)$') {
+        $slot = $Matches[1]
+        $values = [int[]]($Matches[2] -split ' ')
+        if ($values.Count -eq 7 -and $script:players.ContainsKey($slot)) {
+            $script:players[$slot].Values = $values
+            if ($slot -eq $script:selectedPlayer) { Set-Input @values }
         }
         return
     }
@@ -720,31 +748,26 @@ function Handle-ReceiverLine([string]$line) {
         Set-Status 'Waiting for phone' '#38BDF8'
         Set-PairingStatus 'Listening on TCP 26760' '#38BDF8'
         Set-Live 'No phone' '#66706F'
-    } elseif ($message -match '^\[CONNECTED\]\s*(.*)$') {
-        Reset-Input
-        $script:peer = $Matches[1]
-        Set-Status 'Connected' '#74E0C8'
-        Set-PairingStatus ("Streaming input from " + $script:peer) '#74E0C8'
-        $script:ui.PeerText.Text = "Connected to " + $script:peer
-        Set-Live 'Streaming' '#74E0C8'
-    } elseif ($message -match '^\[DISCONNECTED\]') {
-        Reset-Input
-        Set-Status 'Waiting for phone' '#38BDF8'
-        Set-PairingStatus 'Waiting for a phone to pair' '#38BDF8'
-        $script:ui.PeerText.Text = if ($script:peer) { "Last peer " + $script:peer } else { 'No phone connected' }
-        Set-Live 'No phone' '#66706F'
-    } elseif ($message -match '^\[PAIRING FAILED\]') {
-        Reset-Input
-        Set-Status 'Pairing failed' '#FF8A8A'
-        Set-PairingStatus ($message -replace '^\[PAIRING FAILED\]\s*', '') '#FF8A8A'
-        Set-Live 'No phone' '#66706F'
-    } elseif ($message -match '^\[STALLED\]') {
-        Reset-Input
-        Set-Status 'Controls released' '#F5C56B'
-        Set-Live 'Idle' '#F5C56B'
-    } elseif ($message -match '^\[RESUMED\]') {
-        Set-Status 'Connected' '#74E0C8'
-        Set-Live 'Streaming' '#74E0C8'
+    } elseif ($message -match '^\[(CONNECTED|DISCONNECTED|STALLED|RESUMED)\] (P[12]) (\S+)') {
+        $eventName, $slot, $peerAddress = $Matches[1], $Matches[2], $Matches[3]
+        $previousSelection = $script:selectedPlayer
+        switch ($eventName) {
+            'CONNECTED' {
+                if (!$script:players.Count) { $script:selectedPlayer = $slot }
+                $script:players[$slot] = @{ Peer = $peerAddress; Stalled = $false; Values = @(0,0,0,0,0,0,0) }
+            }
+            'DISCONNECTED' {
+                $script:players.Remove($slot)
+                if ($slot -eq $script:selectedPlayer -and $script:players.Count) {
+                    $script:selectedPlayer = @($script:players.Keys)[0]
+                }
+            }
+            'STALLED' { if ($script:players[$slot]) { $script:players[$slot].Stalled = $true } }
+            'RESUMED' { if ($script:players[$slot]) { $script:players[$slot].Stalled = $false } }
+        }
+        Update-Players ($slot -eq $script:selectedPlayer -or $previousSelection -ne $script:selectedPlayer)
+    } elseif ($message -match '^\[FULL\]') {
+        $level = 'warning'
     }
     Add-Activity $message $level
 }
@@ -768,6 +791,8 @@ function Read-ReceiverLog {
         Set-PairingStatus ("Receiver exited with code " + $code) '#FF8A8A'
         Set-Live 'No phone' '#66706F'
         Add-Activity ("Receiver exited with code " + $code + ". Check the activity log above.") 'error'
+        $script:players.Clear()
+        $script:ui.PeerText.Text = 'No phone connected'
         $script:receiver = $null
         $script:running = $false
         Update-Controls
@@ -810,7 +835,8 @@ function Start-Receiver {
     $script:logState = @{ Position = [long]0; Residual = '' }
     $script:errState = @{ Position = [long]0; Residual = '' }
     $script:pin = $null
-    $script:peer = ''
+    $script:players.Clear()
+    $script:selectedPlayer = 'P1'
     $script:ui.PairingCode.Text = '------'
     Clear-PairingQr
     $script:ui.PeerText.Text = 'No phone connected'

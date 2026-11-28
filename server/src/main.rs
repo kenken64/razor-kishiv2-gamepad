@@ -47,18 +47,22 @@ fn timestamp() -> String {
     chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, false)
 }
 
-fn receive(
-    mut socket: TcpStream,
-    pin: &str,
-    paired: &mut bool,
-    mut apply: impl FnMut(Gamepad) -> Result<()>,
-) -> Result<()> {
+fn authenticate(socket: &mut TcpStream, pin: &str) -> Result<()> {
     socket.set_read_timeout(Some(Duration::from_secs(2)))?;
     let mut hello = [0; 10];
     socket.read_exact(&mut hello)?;
     if hello[..4] != *b"KSH1" || hello[4..] != *pin.as_bytes() {
         return Err("Incorrect pairing code or protocol".into());
     }
+    Ok(())
+}
+
+fn receive(
+    mut socket: TcpStream,
+    player: &str,
+    paired: &mut bool,
+    mut apply: impl FnMut(Gamepad) -> Result<()>,
+) -> Result<()> {
     socket.set_nodelay(true)?;
     socket.set_write_timeout(Some(Duration::from_millis(750)))?;
     // R advertises optional report acknowledgements after the legacy OK handshake.
@@ -68,7 +72,7 @@ fn receive(
     socket.set_read_timeout(Some(Duration::from_millis(250)))?;
     *paired = true;
     let peer = socket.peer_addr()?;
-    println!("{} [CONNECTED] {peer}", timestamp());
+    println!("{} [CONNECTED] {player}{peer}", timestamp());
     let mut b = [0; 12];
     let mut filled = 0;
     let mut last_report = Instant::now();
@@ -97,7 +101,7 @@ fn receive(
                 apply(Gamepad::default())?;
                 stalled = true;
                 println!(
-                    "{} [STALLED] {peer} Controls released; waiting for input",
+                    "{} [STALLED] {player}{peer} Controls released; waiting for input",
                     timestamp()
                 );
             }
@@ -107,7 +111,7 @@ fn receive(
             continue;
         }
         if stalled {
-            println!("{} [RESUMED] {peer} Input restored", timestamp());
+            println!("{} [RESUMED] {player}{peer} Input restored", timestamp());
             stalled = false;
         }
         last_report = Instant::now();
@@ -134,7 +138,7 @@ fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let monitor = args.iter().any(|a| a == "--monitor");
     let ui = args.iter().any(|a| a == "--ui");
-    let mut target = if monitor {
+    let target = if monitor {
         None
     } else {
         Some(device::Device::open()?)
@@ -158,55 +162,133 @@ fn main() -> Result<()> {
             .collect();
         println!("[PAIR-QR] {}", rows.join("/"));
     }
+    #[cfg(windows)]
+    return serve_windows(listener, &pin, target, monitor, ui);
+    #[cfg(not(windows))]
+    {
+        let mut target = target;
+        for socket in listener.incoming() {
+            let mut socket = socket?;
+            if let Err(error) = authenticate(&mut socket, &pin) {
+                eprintln!("{} [PAIRING FAILED] {error}", timestamp());
+                continue;
+            }
+            session(socket, "", &mut target, ui)?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+fn serve_windows(
+    listener: TcpListener,
+    pin: &str,
+    mut first_pad: Option<device::Device>,
+    monitor: bool,
+    ui: bool,
+) -> Result<()> {
+    use std::thread::{self, JoinHandle};
+    // A worker owns its controller until its final neutral report and disconnect event.
+    let mut workers: [Option<JoinHandle<Option<device::Device>>>; 2] = [None, None];
     for socket in listener.incoming() {
-        let mut previous = None;
-        let mut ui_buttons = 0;
-        let mut ui_spin_held = false;
-        let mut last_ui = Instant::now() - Duration::from_secs(1);
-        let socket = socket?;
+        let mut socket = socket?;
         let peer = socket.peer_addr()?;
-        let mut paired = false;
-        let result = receive(socket, &pin, &mut paired, |state| {
-            let spin_held =
-                state.right_trigger >= 140 || (ui_spin_held && state.right_trigger > 80);
-            if ui
-                && (state.buttons != ui_buttons
-                    || spin_held != ui_spin_held
-                    || last_ui.elapsed() >= Duration::from_millis(50))
-            {
-                println!(
-                    "[STATE] {} {} {} {} {} {} {}",
-                    state.buttons,
-                    state.left_trigger,
-                    state.right_trigger,
-                    state.thumb_lx,
-                    state.thumb_ly,
-                    state.thumb_rx,
-                    state.thumb_ry
-                );
-                last_ui = Instant::now();
-                ui_buttons = state.buttons;
-                ui_spin_held = spin_held;
-            }
-            if let Some(pad) = &mut target {
-                pad.update(&state)?;
-            } else if !ui && previous != Some(state) {
-                println!("{} [INPUT] {peer} {state:?}", timestamp());
-                previous = Some(state);
-            }
-            Ok(())
-        });
-        if let Some(pad) = &mut target {
-            pad.update(&Gamepad::default())?;
+        if let Err(error) = authenticate(&mut socket, pin) {
+            println!("{} [PAIRING FAILED] {peer} {error}", timestamp());
+            continue;
         }
-        if let Err(e) = result {
-            let label = match (paired, io::stderr().is_terminal()) {
-                (true, true) => "\x1b[1;31m[DISCONNECTED]\x1b[0m",
-                (true, false) => "[DISCONNECTED]",
-                (false, _) => "[PAIRING FAILED]",
-            };
-            eprintln!("{} {label} {peer} {e}", timestamp());
+        let Some(index) = workers
+            .iter()
+            .position(|worker| worker.as_ref().map_or(true, |w| w.is_finished()))
+        else {
+            let _ = socket.write_all(b"BUSY");
+            println!("{} [FULL] {peer} Both players are connected", timestamp());
+            continue;
+        };
+        if let Some(done) = workers[index].take() {
+            let recovered = done.join().unwrap_or(None);
+            if index == 0 {
+                first_pad = recovered;
+            }
         }
+        let mut target = if index == 0 { first_pad.take() } else { None };
+        workers[index] = Some(thread::spawn(move || {
+            let player = if index == 0 { "P1 " } else { "P2 " };
+            if !monitor && target.is_none() {
+                match device::Device::open() {
+                    Ok(device) => target = Some(device),
+                    Err(error) => {
+                        println!("{} [PAIRING FAILED] {player}{peer} {error}", timestamp());
+                        return None;
+                    }
+                }
+            }
+            if let Err(error) = session(socket, player, &mut target, ui) {
+                println!("{} [DISCONNECTED] {player}{peer} {error}", timestamp());
+                return None;
+            }
+            // Keep the original controller available between single-player sessions.
+            if index == 0 {
+                target
+            } else {
+                None
+            }
+        }));
+    }
+    Ok(())
+}
+
+fn session(
+    socket: TcpStream,
+    player: &str,
+    target: &mut Option<device::Device>,
+    ui: bool,
+) -> Result<()> {
+    let mut previous = None;
+    let mut ui_buttons = 0;
+    let mut ui_spin_held = false;
+    let mut last_ui = Instant::now() - Duration::from_secs(1);
+    let peer = socket.peer_addr()?;
+    let mut paired = false;
+    let result = receive(socket, player, &mut paired, |state| {
+        let spin_held = state.right_trigger >= 140 || (ui_spin_held && state.right_trigger > 80);
+        if ui
+            && (state.buttons != ui_buttons
+                || spin_held != ui_spin_held
+                || last_ui.elapsed() >= Duration::from_millis(50))
+        {
+            println!(
+                "[STATE] {player}{} {} {} {} {} {} {}",
+                state.buttons,
+                state.left_trigger,
+                state.right_trigger,
+                state.thumb_lx,
+                state.thumb_ly,
+                state.thumb_rx,
+                state.thumb_ry
+            );
+            last_ui = Instant::now();
+            ui_buttons = state.buttons;
+            ui_spin_held = spin_held;
+        }
+        if let Some(pad) = target.as_mut() {
+            pad.update(&state)?;
+        } else if !ui && previous != Some(state) {
+            println!("{} [INPUT] {player}{peer} {state:?}", timestamp());
+            previous = Some(state);
+        }
+        Ok(())
+    });
+    if let Some(pad) = target.as_mut() {
+        pad.update(&Gamepad::default())?;
+    }
+    if let Err(e) = result {
+        let label = match (paired, io::stderr().is_terminal()) {
+            (true, true) => "\x1b[1;31m[DISCONNECTED]\x1b[0m",
+            (true, false) => "[DISCONNECTED]",
+            (false, _) => "[PAIRING FAILED]",
+        };
+        println!("{} {label} {player}{peer} {e}", timestamp());
     }
     Ok(())
 }
@@ -225,8 +307,9 @@ mod tests {
             .unwrap();
         let (updates, states) = mpsc::channel();
         let server = thread::spawn(move || {
-            let (socket, _) = listener.accept().unwrap();
-            receive(socket, "123456", &mut false, |pad| {
+            let (mut socket, _) = listener.accept().unwrap();
+            authenticate(&mut socket, "123456").unwrap();
+            receive(socket, "", &mut false, |pad| {
                 updates.send(pad)?;
                 Ok(())
             })
@@ -262,8 +345,9 @@ mod tests {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let mut phone = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
         phone.write_all(b"KSH1123456").unwrap();
-        let (socket, _) = listener.accept().unwrap();
-        let error = receive(socket, "123456", &mut false, |_| Ok(())).unwrap_err();
+        let (mut socket, _) = listener.accept().unwrap();
+        authenticate(&mut socket, "123456").unwrap();
+        let error = receive(socket, "", &mut false, |_| Ok(())).unwrap_err();
         assert_eq!(error.to_string(), "No complete input report for 4 seconds");
     }
 }

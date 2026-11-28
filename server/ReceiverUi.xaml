@@ -392,6 +392,8 @@
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="∿" FontSize="13" Foreground="{StaticResource Accent}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                     <TextBlock Text="Live input" Style="{StaticResource PanelTitle}"/>
+                                    <Button x:Name="Player1" Content="P1" Margin="8,0,0,0" Style="{StaticResource GhostButton}" ToolTip="Inspect Player 1"/>
+                                    <Button x:Name="Player2" Content="P2" Style="{StaticResource GhostButton}" ToolTip="Inspect Player 2"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                     <Ellipse x:Name="LiveDot" Width="7" Height="7" Fill="#33FFFFFF" Margin="0,0,7,0"/>
