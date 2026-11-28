@@ -2,12 +2,12 @@ import SwiftUI
 import AppKit
 
 @main
-struct KishiReceiverApp: App {
+struct PadRelayReceiverApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = ReceiverModel()
 
     var body: some Scene {
-        WindowGroup("Kishi Receiver") {
+        WindowGroup("PadRelay") {
             ContentView(model: model)
                 .frame(minWidth: 1000, minHeight: 760)
         }

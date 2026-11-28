@@ -5,15 +5,15 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Kishi Receiver</string>
+    <string>PadRelay</string>
     <key>CFBundleExecutable</key>
-    <string>kishi-receiver</string>
+    <string>padrelay-receiver</string>
     <key>CFBundleIdentifier</key>
     <string>com.kishiwifi.receiver</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Kishi Receiver</string>
+    <string>PadRelay</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -27,7 +27,7 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>Kishi Receiver accepts controller input from your phone over the local network.</string>
+    <string>PadRelay accepts controller input from your phone over the local network.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

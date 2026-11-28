@@ -39,7 +39,7 @@ impl Device {
         }
         let mut builder = VirtualDevice::builder()
             .map_err(|e| format!("Cannot open /dev/uinput ({e}). Load uinput and grant the receiver user read/write access."))?
-            .name("Kishi Wi-Fi Gamepad").with_keys(&keys)?;
+            .name("PadRelay Gamepad").with_keys(&keys)?;
         for (axis, min, max) in AXES {
             builder = builder.with_absolute_axis(&UinputAbsSetup::new(
                 axis,

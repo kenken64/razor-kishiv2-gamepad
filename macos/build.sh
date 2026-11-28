@@ -10,7 +10,7 @@ set -eu
 
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 build="$here/build"
-app="$build/Kishi Receiver.app"
+app="$build/PadRelay.app"
 sdk=$(xcrun --show-sdk-path)
 swiftui_macros="$(xcode-select -p)/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins/libSwiftUIMacros.dylib"
 plugin_args=""
@@ -33,9 +33,9 @@ cp "$here/preview/index.html" "$here/preview/style.css" "$build/preview/scene.js
 cp "$here/preview/node_modules/three/LICENSE" "$resources/Preview/three-LICENSE.txt"
 cp "$here/../server/assets/"*.glb "$resources/Characters/"
 
-set -- "$here"/KishiReceiver/*.swift
+set -- "$here"/PadRelayReceiver/*.swift
 for arch in $archs; do
-    out="$build/kishi-receiver-$arch"
+    out="$build/padrelay-receiver-$arch"
     echo "Compiling $arch..."
     swiftc \
         -swift-version 5 \
@@ -55,17 +55,17 @@ done
 
 case "$archs" in
     *" "*)
-        lipo -create "$build"/kishi-receiver-* -output "$app/Contents/MacOS/kishi-receiver"
+        lipo -create "$build"/padrelay-receiver-* -output "$app/Contents/MacOS/padrelay-receiver"
         ;;
     *)
-        cp "$build/kishi-receiver-$archs" "$app/Contents/MacOS/kishi-receiver"
+        cp "$build/padrelay-receiver-$archs" "$app/Contents/MacOS/padrelay-receiver"
         ;;
 esac
 
 cp "$here/Info.plist" "$app/Contents/Info.plist"
 printf 'APPL????' > "$app/Contents/PkgInfo"
 plutil -lint "$app/Contents/Info.plist" > /dev/null
-chmod 755 "$app/Contents/MacOS/kishi-receiver"
+chmod 755 "$app/Contents/MacOS/padrelay-receiver"
 
 if [ -n "${SIGNING_IDENTITY:-}" ]; then
     : "${PROVISIONING_PROFILE:?Set PROVISIONING_PROFILE with SIGNING_IDENTITY.}"

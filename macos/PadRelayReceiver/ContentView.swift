@@ -84,7 +84,7 @@ private struct HeaderView: View {
             .shadow(color: Color(hex: 0x2DD4BF).opacity(0.35), radius: 12, y: 4)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("Kishi Receiver")
+                Text("PadRelay")
                     .font(.system(size: 27, weight: .semibold, design: .rounded))
                 Text("Razer Kishi V2 · wireless bridge to macOS")
                     .font(.system(size: 13.5))
@@ -289,12 +289,12 @@ private struct ReceiverPanel: View {
 
     private var gamepadStatusText: String {
         if model.hasGamepad {
-            return "Kishi Wi-Fi Gamepad is published to macOS."
+            return "PadRelay Gamepad is published to macOS."
         }
         if model.selectedMode == .monitor || model.gamepadError != nil {
             return "Input is visible here but games receive nothing."
         }
-        return "Kishi Wi-Fi Gamepad will be published when the receiver starts."
+        return "PadRelay Gamepad will be published when the receiver starts."
     }
 
     var body: some View {

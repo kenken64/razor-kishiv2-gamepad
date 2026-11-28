@@ -27,7 +27,7 @@ impl Device {
             ),
             (
                 CFString::new("Product"),
-                CFString::new("Kishi Wi-Fi Gamepad").as_CFType(),
+                CFString::new("PadRelay Gamepad").as_CFType(),
             ),
             (
                 CFString::new("Transport"),

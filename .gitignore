@@ -5,3 +5,5 @@
 /macos/build/
 .DS_Store
 /macos/preview/node_modules/
+/linux/build/
+__pycache__/

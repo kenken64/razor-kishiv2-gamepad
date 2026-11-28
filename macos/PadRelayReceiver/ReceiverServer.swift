@@ -12,7 +12,7 @@ protocol ReceiverServerDelegate: AnyObject {
     func receiverServer(_ server: ReceiverServer, log message: String)
 }
 
-/// TCP receiver for the Kishi Wi-Fi protocol.
+/// TCP receiver for the PadRelay protocol.
 ///
 /// The phone sends a 10-byte `KSH1` + six-digit pairing code handshake, expects
 /// `OKR` back, then streams 12-byte big-endian input reports. Reports with the

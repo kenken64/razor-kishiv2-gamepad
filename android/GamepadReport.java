@@ -2,7 +2,7 @@ package net.kishi.bridge;
 
 /** Converts the sender's big-endian Xbox state into a generic Android HID gamepad. */
 final class GamepadReport {
-    static final String NAME = "Kishi Wi-Fi Gamepad";
+    static final String NAME = "PadRelay Gamepad";
     // Button usages follow Android's standard gamepad layout. Hat 8 denotes center.
     static final int[] DESCRIPTOR = {
         0x05,1, 0x09,5, 0xa1,1,

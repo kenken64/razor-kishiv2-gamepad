@@ -24,7 +24,7 @@ final class VirtualGamepad {
     init() throws {
         let properties: [String: Any] = [
             "ReportDescriptor": Data(GamepadState.hidDescriptor),
-            "Product": "Kishi Wi-Fi Gamepad",
+            "Product": "PadRelay Gamepad",
             "Transport": "Virtual",
         ]
         guard let device = IOHIDUserDeviceCreateWithProperties(

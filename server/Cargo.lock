@@ -174,7 +174,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "kishi-receiver"
+name = "padrelay-receiver"
 version = "0.1.0"
 dependencies = [
  "chrono",

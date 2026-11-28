@@ -12,7 +12,7 @@ function Invoke-Pixel([string[]]$Arguments) {
 }
 $product = (Invoke-Pixel @('shell','getprop','ro.product.device')).Trim()
 if ($product -ne 'cheetah') { throw "Expected a Pixel 7 Pro (cheetah), found $product." }
-$apk = Join-Path $PSScriptRoot 'build\Kishi-WiFi.apk'
+$apk = Join-Path $PSScriptRoot 'build\PadRelay.apk'
 if (!(Test-Path -LiteralPath $apk)) { throw "Build the APK with android\build.ps1 first." }
 Invoke-Pixel @('install','-r',$apk)
 $setup = @'

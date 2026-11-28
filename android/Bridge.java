@@ -192,7 +192,7 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
         screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         LinearLayout root=column(); root.setPadding(dp(12),dp(2),dp(12),dp(2)); root.setFocusableInTouchMode(true); scroll.addView(root);
         LinearLayout header=new LinearLayout(this); header.setGravity(Gravity.CENTER_VERTICAL); root.addView(header);
-        TextView title=label("Kishi Wi-Fi",25,white,true); title.setLetterSpacing(-0.045f);
+        TextView title=label("PadRelay",25,white,true); title.setLetterSpacing(-0.045f);
         header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
         Button receive=new Button(this,null,android.R.attr.borderlessButtonStyle);
         receive.setText("Receiver mode"); receive.setTextColor(lime); receive.setAllCaps(false);
@@ -401,7 +401,7 @@ public class Bridge extends Activity implements InputManager.InputDeviceListener
                 awaitingPair=false;
                 runOnUiThread(() -> {if(session==this && !retryPending){pairedThisRun=true; retrySeconds=1; ready=true; emit(); linkState.setText("Connected"); linkState.setTextColor(lime); status.setText("Sending input to "+address);}});
                 s.setSoTimeout(0);
-                new Thread(()->readAcks(in),"Kishi RTT reader").start();
+                new Thread(()->readAcks(in),"PadRelay RTT reader").start();
                 long nextProbe=System.nanoTime();
                 byte[] last=frames.take();
                 out.write(last);

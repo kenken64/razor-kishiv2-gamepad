@@ -132,7 +132,7 @@ public final class PairingScanActivity extends Activity implements SurfaceHolder
                         setResult(RESULT_OK,new Intent().putExtra("pairing",text));
                         finish();
                     } else {
-                        if (text!=null) hint.setText("Use the pairing QR code shown by Kishi Receiver.");
+                        if (text!=null) hint.setText("Use the pairing QR code shown by PadRelay.");
                         preview.postDelayed(() -> nextFrame(source,width,height),70);
                     }
                 });

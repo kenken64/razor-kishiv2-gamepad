@@ -33,7 +33,7 @@ if (-not $wpfReady) {
 $darkTitleSource = @'
 using System;
 using System.Runtime.InteropServices;
-public static class KishiDarkTitle {
+public static class PadRelayDarkTitle {
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
     public static void Apply(IntPtr hwnd) {
@@ -44,11 +44,11 @@ public static class KishiDarkTitle {
     }
 }
 '@
-if (-not ('KishiDarkTitle' -as [type])) {
+if (-not ('PadRelayDarkTitle' -as [type])) {
     try { Add-Type -TypeDefinition $darkTitleSource -ErrorAction Stop } catch {}
 }
 
-$title = 'Kishi Receiver'
+$title = 'PadRelay'
 try {
     $xamlPath = Join-Path $PSScriptRoot 'ReceiverUi.xaml'
     [xml]$xaml = Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
@@ -118,14 +118,14 @@ function Get-ReceiverExe {
         if ($LASTEXITCODE -eq 0 -and $metadata) {
             $target = ($metadata | ConvertFrom-Json).target_directory
             foreach ($profile in 'release','debug') {
-                $candidate = Join-Path $target "$profile\kishi-receiver.exe"
+                $candidate = Join-Path $target "$profile\padrelay-receiver.exe"
                 if (Test-Path -LiteralPath $candidate) { return $candidate }
             }
         }
     }
-    $release = Join-Path $PSScriptRoot 'target\release\kishi-receiver.exe'
+    $release = Join-Path $PSScriptRoot 'target\release\padrelay-receiver.exe'
     if (Test-Path -LiteralPath $release) { return $release }
-    $debug = Join-Path $PSScriptRoot 'target\debug\kishi-receiver.exe'
+    $debug = Join-Path $PSScriptRoot 'target\debug\padrelay-receiver.exe'
     if (Test-Path -LiteralPath $debug) { return $debug }
     return $null
 }
@@ -790,7 +790,7 @@ function Start-Receiver {
     if ($existing) {
         try {
             $process = Get-Process -Id $existing.OwningProcess -ErrorAction Stop
-            if ($process.ProcessName -eq 'kishi-receiver' -or $process.Path -eq $exe) {
+            if ($process.ProcessName -eq 'padrelay-receiver' -or $process.Path -eq $exe) {
                 Stop-Process -Id $process.Id -Force
                 Wait-Process -Id $process.Id -Timeout 2 -ErrorAction SilentlyContinue
                 Start-Sleep -Milliseconds 300
@@ -805,7 +805,7 @@ function Start-Receiver {
         }
     }
 
-    $script:logPath = Join-Path $env:TEMP ('kishi-ui-' + [Guid]::NewGuid().ToString('N') + '.log')
+    $script:logPath = Join-Path $env:TEMP ('padrelay-ui-' + [Guid]::NewGuid().ToString('N') + '.log')
     $script:errPath = $script:logPath + '.err'
     $script:logState = @{ Position = [long]0; Residual = '' }
     $script:errState = @{ Position = [long]0; Residual = '' }
@@ -981,6 +981,7 @@ function Set-ModelVisibility([bool]$visible) {
     }
 }
 
+# Preserve the existing preference location across the PadRelay rename.
 $script:previewSettings = 'HKCU:\Software\Kishi Wi-Fi Receiver'
 $preference = Get-ItemProperty -LiteralPath $script:previewSettings -Name ShowModel -ErrorAction SilentlyContinue
 Set-ModelVisibility ($null -eq $preference -or $preference.ShowModel -ne 0)
@@ -1030,7 +1031,7 @@ $timer.Start()
 $window.Add_SourceInitialized({
     try {
         $helper = [Windows.Interop.WindowInteropHelper]::new($window)
-        [KishiDarkTitle]::Apply($helper.Handle)
+        [PadRelayDarkTitle]::Apply($helper.Handle)
     } catch {}
 })
 

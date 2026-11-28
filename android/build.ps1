@@ -24,8 +24,8 @@ try {
     try { Run "$bt/aapt.exe" @('add','../raw.apk','classes.dex') } finally { Pop-Location }
     Run "$bt/zipalign.exe" @('-f','4','build/raw.apk','build/aligned.apk')
     if (!(Test-Path build/debug.jks)) {
-        Run keytool @('-genkeypair','-keystore','build/debug.jks','-storepass','android','-keypass','android','-alias','debug','-keyalg','RSA','-validity','10000','-dname','CN=Kishi Local Debug')
+        Run keytool @('-genkeypair','-keystore','build/debug.jks','-storepass','android','-keypass','android','-alias','debug','-keyalg','RSA','-validity','10000','-dname','CN=PadRelay Local Debug')
     }
-    Run "$bt/apksigner.bat" @('sign','--ks','build/debug.jks','--ks-pass','pass:android','--out','build/Kishi-WiFi.apk','build/aligned.apk')
-    Run "$bt/apksigner.bat" @('verify','build/Kishi-WiFi.apk')
+    Run "$bt/apksigner.bat" @('sign','--ks','build/debug.jks','--ks-pass','pass:android','--out','build/PadRelay.apk','build/aligned.apk')
+    Run "$bt/apksigner.bat" @('verify','build/PadRelay.apk')
 } finally { Pop-Location }

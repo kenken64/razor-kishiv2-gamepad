@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 import WebKit
 
-/// The page renders locally. Only files discovered in the two character directories
+/// The page renders locally. Only files discovered in the character directories
 /// can be requested by the model picker.
 @MainActor struct CharacterPreview: NSViewRepresentable {
     let model: ReceiverModel
@@ -62,8 +62,10 @@ import WebKit
             var result: [String: URL] = [:]
             let fm = FileManager.default
             var folders = [Bundle.main.resourceURL?.appendingPathComponent("Characters")]
-            let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-                .appendingPathComponent("Kishi Receiver/Characters", isDirectory: true)
+            let applicationSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            // Read legacy custom models too, with PadRelay files taking precedence.
+            folders.append(applicationSupport?.appendingPathComponent("Kishi Receiver/Characters", isDirectory: true))
+            let support = applicationSupport?.appendingPathComponent("PadRelay/Characters", isDirectory: true)
             if let support {
                 try? fm.createDirectory(at: support, withIntermediateDirectories: true)
                 folders.append(support)

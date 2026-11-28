@@ -10,7 +10,7 @@ enum ReceiverMode: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .gamepad:
-            return "Publishes Kishi Wi-Fi Gamepad to macOS games."
+            return "Publishes PadRelay Gamepad to macOS games."
         case .monitor:
             return "Pairs and shows input without creating a gamepad."
         }

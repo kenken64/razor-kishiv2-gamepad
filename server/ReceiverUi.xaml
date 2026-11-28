@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Kishi Receiver"
+        Title="PadRelay"
         Width="1120" Height="860" MinWidth="1000" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Background="#090D17" Foreground="#F3FAF6"
@@ -218,7 +218,7 @@
                 </Border>
 
                 <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="Kishi Receiver" FontSize="27" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                    <TextBlock Text="PadRelay" FontSize="27" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
                     <TextBlock Text="Razer Kishi V2 · wireless bridge to Windows" FontSize="13.5"
                                Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0"/>
                 </StackPanel>

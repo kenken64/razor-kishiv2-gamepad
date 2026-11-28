@@ -33,9 +33,9 @@ public class ReceiverService extends Service {
         PendingIntent open=PendingIntent.getActivity(this,0,new Intent(this,ReceiverActivity.class),
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         startForeground(1,notice.setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
-            .setContentTitle("Kishi Wi-Fi receiver").setContentText("Tap to view pairing details or stop receiving.")
+            .setContentTitle("PadRelay receiver").setContentText("Tap to view pairing details or stop receiving.")
             .setOngoing(true).setContentIntent(open).build());
-        new Thread(this::runReceiver,"Kishi receiver").start();
+        new Thread(this::runReceiver,"PadRelay receiver").start();
     }
     @Override public int onStartCommand(Intent intent,int flags,int id) { return START_NOT_STICKY; }
     private boolean hasGamepad() {

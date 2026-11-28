@@ -1,11 +1,11 @@
 #!/bin/sh
-# Sign the built Kishi Receiver.app for virtual gamepad output.
+# Sign the built PadRelay.app for virtual gamepad output.
 #
 # The provisioning profile must use an explicit macOS App ID with the
 # com.apple.developer.hid.virtual.device entitlement enabled.
 set -eu
 if [ "$#" -ne 3 ]; then
-    echo 'Usage: sh sign-macos.sh "Kishi Receiver.app" PROVISIONING_PROFILE SIGNING_IDENTITY' >&2
+    echo 'Usage: sh sign-macos.sh "PadRelay.app" PROVISIONING_PROFILE SIGNING_IDENTITY' >&2
     exit 2
 fi
 
